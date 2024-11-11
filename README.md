@@ -1,2 +1,3 @@
 # geez-parser
-Parser for the geez script
+A python implementation of Gǝʿǝz Morphological Parser Application (https://www.fdr.uni-hamburg.de/record/125), licensed under Creative Commons Attribution 4.0 International.
+All credit for the original implementation goes to Pietro Liuzzo. (2019, May 26). Gǝʿǝz Morphological Parser Application (Version 0.5). http://doi.org/10.25592/uhhfdm.125 and Beta maṣāḥǝft at ttps://betamasaheft.eu/
