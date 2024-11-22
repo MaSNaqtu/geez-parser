@@ -8,6 +8,7 @@ Created on Fri Nov  8 22:29:46 2024
 
 import unittest
 from modules.query.dillman import checkDill
+import requests
 
 class TestStringMethods(unittest.TestCase):
 
@@ -25,6 +26,13 @@ class TestStringMethods(unittest.TestCase):
         result3 = checkDill.replace('b', 'a', 'c', 'ws')
         result3.sort()
         self.assertEqual(['b'],  result3)
+        
+    def test_substitutionsInQuery(self):
+        result1 = checkDill.substitutionsInCandidate('ሠለሠ')
+        result1.sort()
+        answer1 = ['ሠለሠ', 'ሰለሠ', 'ሰለሰ', 'ሠለሰ']
+        answer1.sort()
+        self.assertEqual(answer1, result1)
 
 if __name__ == '__main__':
     unittest.main()
