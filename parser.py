@@ -32,10 +32,10 @@ def getLetters():
     intList = []
     
     #Find all "letter" tags and iterate through them
-    for letter in root.iter('{http://fidal.parser}letter'):
+    for letter in root.iter('letter'):
         hasType = 'type' in letter.attrib
         
-        realizations = letter.iter('{http://fidal.parser}realization')
+        realizations = letter.iter('realization')
         for realization in realizations:
             if 'type' in realization.attrib:
                 rType = realization.attrib['type']
@@ -52,7 +52,7 @@ def getLetters():
         lType = letter.attrib['type']
         if lType == 'laryngeal':
             #Find all tags "realizations" directly under the the letter
-            realizations = letter.findall('{http://fidal.parser}realizations')[0]
+            realizations = letter.findall('realizations')[0]
             #TODO: Ask if someone might now, why the magic number 2
             laryngeals = laryngeals + [realizations[2].text]
             #All other realizations go into laryngealsAll
@@ -61,19 +61,19 @@ def getLetters():
                     laryngealsAll = laryngealsAll + [realization.text]
                     
         if lType == 'sibilant':
-            realizations = letter.findall('{http://fidal.parser}realizations')[0]
+            realizations = letter.findall('realizations')[0]
             sibilants = sibilants + [realizations[2].text]
             
         if lType == 'dental':
-            realizations = letter.findall('{http://fidal.parser}realizations')[0]
+            realizations = letter.findall('realizations')[0]
             dentals = dentals + [realizations[2].text]
         
         if lType == 'yod':
-            realizations = letter.findall('{http://fidal.parser}realizations')[0]
+            realizations = letter.findall('realizations')[0]
             yod = yod + [realizations[2].text]
             
         if lType == 'waw':
-            realizations = letter.findall('{http://fidal.parser}realizations')[0]
+            realizations = letter.findall('realizations')[0]
             waw = waw + [realizations[2].text]
         
     return {

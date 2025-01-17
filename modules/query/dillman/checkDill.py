@@ -39,7 +39,9 @@ def checkDill(candidates: list) -> list:
             }
         url = 'https://betamasaheft.eu/Dillmann/lemma/' + entry['link'] + '.xml'
         response = requests.get(url, headers=headers)
-        continue
+        entry['inDillman'] = (response.status_code == 200)
+        break
+    return
     
 
 def substitutionsInCandidate(candidate: str) -> list:

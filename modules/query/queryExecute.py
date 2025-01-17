@@ -9,8 +9,11 @@ Created on Fri Nov  8 15:30:55 2024
 import xml.etree.ElementTree as ET
 from modules.query.dillman import checkDill
 
+namespace = {'fidal': 'http://fidal.parser'}
+
 def execute(query, fidal, negative, quotative, interrogatives):
-    particles = getAllParticles(fidal, negative, quotative, interrogatives)
+    #particles = getAllParticles(fidal, negative, quotative, interrogatives)
+    nouns = formulas(query, 'noun')
     
 def getAllParticles(fidal, negative, quotative, interrogatives):
     candidates = [negative['root'], quotative['root']]
@@ -26,6 +29,11 @@ def getAllParticles(fidal, negative, quotative, interrogatives):
     #Unused?
     numbers = getNumbers()
     checkDill.checkDill(candidates)
+    return
+
+def formulas(query, formulaType):
+    consVowel = parseChars(query, formulaType)
+    possibleDesiences = desiences(consVowel, formulaType)
     return
     
 def getPronouns():    
@@ -115,3 +123,54 @@ def getNumbers():
             'root': number.text
             }]
     return numbers
+
+def parseChars(query, formulaType):
+    if formulaType == 'noun':
+        return standardNoun(query)
+
+def standardNoun(query):
+    tree = ET.parse('./in/morpho/letters.xml')
+    nouns = []
+    
+    for i, char in enumerate(query[0]):
+        realization = tree.find(".//realization[. = '{}']".format(char), namespace)
+        letter = tree.find(".//realization[. = '{}']....".format(char), namespace)
+        if (i == 1 and len(query[0]) > 4 and (realization == 'መ' or realization == 'ም')):
+            realizations = letter.find('realizations', namespace).findall('realization', namespace)
+            first = realizations[1]
+            transcription = letter.find('transcription', namespace).text
+            for j, currentRealization in enumerate(realizations):
+                if realization.text == currentRealization.text:
+                    break
+            nouns.append({'char': char, 'firstOrder': first.text, 'order': j, 'transcription': transcription})
+        else:
+            realizations = letter.find('realizations', namespace).findall('realization', namespace)
+            first = realizations[1]
+            transcription = letter.find('transcription', namespace).text
+            for j, currentRealization in enumerate(realizations):
+                if realization.text == currentRealization.text:
+                    break
+            nouns.append({'char': char, 'firstOrder': first.text, 'position': i, 'order': j, 'transcription': transcription})
+    return nouns
+
+def desiences(consVowel, formulaType):
+    if formulaType == 'noun':
+        targetPatterns = ET.parse('./in/morpho/nounssuffixes.xml')
+    else:
+        targetPatterns = ET.parse('./in/morpho/conjugation.xml')
+    pseudoTrans = charsToPseudoTranscription(consVowel, formulaType)
+    for transcription in pseudoTrans:
+        for affix in targetPatterns:
+            cleanAffix = affix.replace('kk', 'k').replace('tt', 't').replace('nn', 'n')
+
+def charsToPseudoTranscription(chars, formulaType):
+    tree = ET.parse('./in/morpho/letters.xml')
+    result = []
+    for char in chars:
+        partOne = char['transcription']
+        transcription = tree.find('transcription[@type="BM"]', namespace)
+        vowel = transcription.findall('vowel', namespace)[char['order'] + 1].text
+        charTranscription = char['transcription']
+        result = result + [charTranscription + vowel]
+    return result
+    
