@@ -6,12 +6,19 @@ from modules.query import queryExecute
 
 def main():
     query =['ተወሰንክሙ']
+    # Initialize default parameters
+    transcriptionType = 'BM'
+    fidal = True
+    fuzzy = True
+    noDil = False
+    mismatch = False
     letters = getLetters()
     negationMarker = getLetter(letters, 'neg')
     quotationMarker = getLetter(letters, 'quot')
     interrogationMarker = getInterrogatives(letters)
-    qClean.clean(query, True, 'BM', negationMarker, quotationMarker, interrogationMarker)
-    queryExecute.execute(query, True, negationMarker, quotationMarker, interrogationMarker)
+    query = qClean.clean(query, fidal, transcriptionType, negationMarker, quotationMarker, interrogationMarker)
+    query.sort(key=lengthSort)
+    queryExecute.execute(query, fidal, negationMarker, quotationMarker, interrogationMarker)
 
 def getLetters():
     #Load letters file
@@ -110,6 +117,9 @@ def getInterrogatives(letters):
             'root': interrogative
             }]
     return interrogatives
+
+def lengthSort(e):
+    return len(e)
 
 if __name__ == "__main__":
     main()

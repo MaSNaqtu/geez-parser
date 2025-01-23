@@ -12,7 +12,7 @@ from modules.query.dillman import checkDill
 namespace = {'fidal': 'http://fidal.parser'}
 
 def execute(query, fidal, negative, quotative, interrogatives):
-    #particles = getAllParticles(fidal, negative, quotative, interrogatives)
+    particles = getAllParticles(fidal, negative, quotative, interrogatives)
     nouns = formulas(query, 'noun')
     
 def getAllParticles(fidal, negative, quotative, interrogatives):
@@ -36,6 +36,7 @@ def formulas(query, formulaType):
     possibleDesiences = desiences(consVowel, formulaType)
     return
     
+# Get pronouns with info group name (e.g. demonstrative), type (e.g. nominative) and their forms
 def getPronouns():    
     tree = ET.parse('./in/morpho/pronouns.xml')
     root = tree.getroot()
@@ -58,6 +59,7 @@ def getPronouns():
                 pronouns = pronouns + [pronoun]
     return pronouns
 
+# Gets pronoun root (nominative, singular, masculin)
 def getRoot(group):
     for pType in group.iter('{http://fidal.parser}type'):
         if (pType.attrib['name'] == 'nominative'):
@@ -65,8 +67,9 @@ def getRoot(group):
                 if num.attrib['type'] == 'Singular':
                     for gender in num:
                         if gender.attrib['type'] == 'Masculine':
-                            return gender.find('{http://fidal.parser}full').text
+                            return gender.find('full', namespace).text
 
+ # Gets forms with infos type, gender, and number
 def getForms(group, pType):
     forms = []
     for num in pType:
