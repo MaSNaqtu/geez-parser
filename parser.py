@@ -5,7 +5,7 @@ from modules.clean import qClean
 from modules.query import queryExecute
 
 def main():
-    query =['ዝንቱ']
+    query =['ተወሰንክሙ']
     letters = getLetters()
     negative = getLetter(letters, 'neg')
     quotative = getLetter(letters, 'quot')
