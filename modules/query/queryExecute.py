@@ -28,8 +28,7 @@ def getAllParticles(fidal, negative, quotative, interrogatives):
 
     #Unused?
     numbers = getNumbers()
-    checkDill.checkDill(candidates)
-    return
+    return checkDill.checkDill(candidates)
 
 def formulas(query, formulaType):
     consVowel = parseChars(query, formulaType)
@@ -67,7 +66,7 @@ def getRoot(group):
                 if num.attrib['type'] == 'Singular':
                     for gender in num:
                         if gender.attrib['type'] == 'Masculine':
-                            return gender.find('full', namespace).text
+                            return gender.find('{http://fidal.parser}full').text
 
  # Gets forms with infos type, gender, and number
 def getForms(group, pType):

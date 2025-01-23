@@ -10,6 +10,8 @@ import re
 import xml.etree.ElementTree as ET
 import requests
 
+# Expands candidates by performing substitutions and check against Dillman
+# Possibly improve performance by saving results, since it does not depend on query, the issue would be updating Dillman
 def checkDill(candidates: list) -> list:
     tree = ET.parse('./in/morpho/lemmas.xml')
     
@@ -39,11 +41,12 @@ def checkDill(candidates: list) -> list:
             }
         url = 'https://betamasaheft.eu/Dillmann/lemma/' + entry['link'] + '.xml'
         response = requests.get(url, headers=headers)
+        # If status code is 200 (OK), the candidate exists in Dillman, otherwise it would be 404 (NOT_FOUND)
         entry['inDillman'] = (response.status_code == 200)
-        break
-    return
+    return dillmanCheck
     
 
+# Expands candidates by executing all possible letter substitutions
 def substitutionsInCandidate(candidate: str) -> list:
     candidateList = []
     # is the second s supposed to be ṣ or z or something?
@@ -134,6 +137,7 @@ def substitutionsInCandidate(candidate: str) -> list:
     
     return result
 
+# Adds all possible substitutions to candidates
 def substitute(candidate: str, homophones: list, mode: str) -> list:
     result = []
     
@@ -149,6 +153,7 @@ def substitute(candidate: str, homophones: list, mode: str) -> list:
         return [candidate]
     return result
 
+# If mode is ws removes the substitute, otherwise return all possible substitutions (through recursion)
 def replace(candidate:str, match: str, substitute: str, mode: str) -> list:
     matchIndeces = [m.start() for m in re.finditer(match, candidate)]
     
@@ -167,6 +172,7 @@ def replace(candidate:str, match: str, substitute: str, mode: str) -> list:
         result = appendResult(result, candidate, newCandidate, replace(newCandidate, match, substitute, mode))
     return result
 
+# Avoids duplicates
 def appendResult(result: list, candidate: str, newCandidate: str, children: list):
     if candidate not in result:
         result = result + [candidate]
