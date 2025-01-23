@@ -10,44 +10,44 @@ import xml.etree.ElementTree as ET
 from modules.query.dillman import checkDill
 
 namespace = {'fidal': 'http://fidal.parser'}
-
-def execute(query, fidal, negative, quotative, interrogatives):
-    particles = getAllParticles(query, negative, quotative, interrogatives)
-    nouns = formulas(query, 'noun')
     
-def getAllParticles(query, negative, quotative, interrogatives):
-    candidates = [negative['root'], quotative['root']]
-    for pronoun in getPronouns(query):
+def execute(query, fidal, negative, quotative, interrogatives):
+    for q in query:
+        particles = getAllParticles(q, negative, quotative, interrogatives)
+        nouns = formulas(q, 'noun')
+
+def getAllParticles(candidate, negative, quotative, interrogatives):
+    candidates = []
+    if candidate == negative['root']:
+        candidates = candidates + negative['root']
+    if candidate == quotative['root']:
+        candidates = candidates + quotative['root']
+
+    for pronoun in getPronouns(candidate):
         candidates = candidates + [pronoun['root']]
-    for proclitic in getProclitic(query):
+    for proclitic in getProclitic(candidate):
         candidates = candidates + [proclitic['root']]
     for interrogative in interrogatives:
-        for candidate in query:
-            if candidate == interrogative['root']:
-                candidates = candidates + [interrogative['root']]
-    for particle in getParticles(query):
+        if candidate == interrogative['root']:
+            candidates = candidates + [interrogative['root']]
+    for particle in getParticles(candidate):
         candidates = candidates + [particle['root']]
 
     #Unused?
     numbers = getNumbers()
     return checkDill.checkDill(candidates)
 
-def formulas(query, formulaType):
-    consVowel = parseChars(query, formulaType)
+def formulas(candidate, formulaType):
+    consVowel = parseChars(candidate, formulaType)
     possibleDesiences = desiences(consVowel, formulaType)
     return
-    
+
 # Get pronouns with info group name (e.g. demonstrative), type (e.g. nominative) and their forms
-def getPronouns(query):
+def getPronouns(candidate):
     tree = ET.parse('./in/morpho/pronouns.xml')
     root = tree.getroot()
     
-    pronouns = []
-    for candidate in query:
-        matchingPronouns = getPronoun(candidate, root)
-        pronouns = pronouns + matchingPronouns
-
-    return pronouns
+    return getPronoun(candidate, root)
 
 # Finds pronouns matching the candidate, finds its root, and returns group, type, forms, and the root
 def getPronoun(candidate, root):
@@ -101,36 +101,34 @@ def getForms(group, pType):
             forms = forms + [form]
     return forms
 
-def getProclitic(query):
+def getProclitic(candidate):
     tree = ET.parse('./in/morpho/proclitics.xml')
     root = tree.getroot()
     results = []
-    for candidate in query:
-        for child in root:
-            if (child.text == candidate):
-                result = {
-                    'solution': {
-                        'pos': 'proclitics',
-                        },
-                    'root': child.text
-                    }
-                results = results + [result]
+    for child in root:
+        if (child.text == candidate):
+            result = {
+                'solution': {
+                    'pos': 'proclitics',
+                    },
+                'root': child.text
+                }
+            results = results + [result]
     return results
 
-def getParticles(query):
+def getParticles(candidate):
     tree = ET.parse('./in/morpho/particles.xml')
     root = tree.getroot()
     particles = []
-    for candidate in query:
-        for particle in root:
-            if particle.text == candidate:
-                particles = particles + [{
-                    'solution': {
-                        'pos': 'particle',
-                        'type': particle.attrib['type']
-                        },
-                    'root': particle.text
-                    }]
+    for particle in root:
+        if particle.text == candidate:
+            particles = particles + [{
+                'solution': {
+                    'pos': 'particle',
+                    'type': particle.attrib['type']
+                    },
+                'root': particle.text
+                }]
     return particles
 
 def getNumbers():
@@ -148,18 +146,19 @@ def getNumbers():
             }]
     return numbers
 
-def parseChars(query, formulaType):
+def parseChars(candidate, formulaType):
     if formulaType == 'noun':
-        return standardNoun(query)
+        return standardNoun(candidate)
+        
 
-def standardNoun(query):
+def standardNoun(candidate):
     tree = ET.parse('./in/morpho/letters.xml')
     nouns = []
     
-    for i, char in enumerate(query[0]):
+    for i, char in enumerate(candidate):
         realization = tree.find(".//realization[. = '{}']".format(char), namespace)
         letter = tree.find(".//realization[. = '{}']....".format(char), namespace)
-        if (i == 1 and len(query[0]) > 4 and (realization == 'መ' or realization == 'ም')):
+        if (i == 1 and len(candidate) > 4 and (realization.text == 'መ' or realization.text == 'ም')):
             realizations = letter.find('realizations', namespace).findall('realization', namespace)
             first = realizations[1]
             transcription = letter.find('transcription', namespace).text

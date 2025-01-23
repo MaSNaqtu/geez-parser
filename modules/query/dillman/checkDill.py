@@ -11,7 +11,6 @@ import xml.etree.ElementTree as ET
 import requests
 
 # Expands candidates by performing substitutions and check against Dillman
-# Possibly improve performance by saving results, since it does not depend on query, the issue would be updating Dillman
 def checkDill(candidates: list) -> list:
     tree = ET.parse('./in/morpho/lemmas.xml')
     
