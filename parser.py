@@ -5,7 +5,8 @@ from modules.clean import qClean
 from modules.query import queryExecute
 
 def main():
-    query =['ተወሰንክሙ']
+    # query =['ተወሰንክሙ'] #  Interesting to Nesina
+    query =['ዝንቱ']  # Has pronoun
     # Initialize default parameters
     transcriptionType = 'BM'
     fidal = True
