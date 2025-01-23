@@ -7,11 +7,11 @@ from modules.query import queryExecute
 def main():
     query =['ተወሰንክሙ']
     letters = getLetters()
-    negative = getLetter(letters, 'neg')
-    quotative = getLetter(letters, 'quot')
-    interrogatives = getInterrogatives(letters)
-    qClean.clean(query, True, 'BM', negative, quotative, interrogatives)
-    queryExecute.execute(query, True, negative, quotative, interrogatives)
+    negationMarker = getLetter(letters, 'neg')
+    quotationMarker = getLetter(letters, 'quot')
+    interrogationMarker = getInterrogatives(letters)
+    qClean.clean(query, True, 'BM', negationMarker, quotationMarker, interrogationMarker)
+    queryExecute.execute(query, True, negationMarker, quotationMarker, interrogationMarker)
 
 def getLetters():
     #Load letters file
@@ -30,7 +30,8 @@ def getLetters():
     quot = []
     #"int" is a keyword in python, so the variable is renamed to intList
     intList = []
-    
+    # Potentially add new attributes location of articulation, manner of articulation
+    # Current "type" attribute is a container mixing different linguistic meta-language levels, but is very pragmatic, since it's the traditional algorithm taught to beginners when learning to parse a complex semitic verbal form.    
     #Find all "letter" tags and iterate through them
     for letter in root.iter('letter'):
         hasType = 'type' in letter.attrib
@@ -48,13 +49,13 @@ def getLetters():
         
         if not hasType:
             continue
-        
+
         lType = letter.attrib['type']
         if lType == 'laryngeal':
             #Find all tags "realizations" directly under the the letter
             realizations = letter.findall('realizations')[0]
-            #TODO: Ask if someone might now, why the magic number 2
-            laryngeals = laryngeals + [realizations[2].text]
+            #realization[1] Corresponds to first order (currently presumed)
+            laryngeals = laryngeals + [realizations[1].text]
             #All other realizations go into laryngealsAll
             for realization in realizations:
                 if realization.text not in laryngealsAll:
@@ -62,19 +63,19 @@ def getLetters():
                     
         if lType == 'sibilant':
             realizations = letter.findall('realizations')[0]
-            sibilants = sibilants + [realizations[2].text]
+            sibilants = sibilants + [realizations[1].text]
             
         if lType == 'dental':
             realizations = letter.findall('realizations')[0]
-            dentals = dentals + [realizations[2].text]
+            dentals = dentals + [realizations[1].text]
         
         if lType == 'yod':
             realizations = letter.findall('realizations')[0]
-            yod = yod + [realizations[2].text]
+            yod = yod + [realizations[1].text]
             
         if lType == 'waw':
             realizations = letter.findall('realizations')[0]
-            waw = waw + [realizations[2].text]
+            waw = waw + [realizations[1].text]
         
     return {
         'laryngeals': laryngeals,
