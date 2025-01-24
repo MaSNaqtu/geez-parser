@@ -5,8 +5,8 @@ from modules.clean import qClean
 from modules.query import queryExecute
 
 def main():
-    # query =['ተወሰንክሙ'] #  Interesting to Nesina
-    query =['ዝንቱ']  # Has pronoun
+    query =['ተወሰንክሙ'] #  Interesting to Nesina
+    # query =['ዝንቱ']  # Has pronoun
     # Initialize default parameters
     transcriptionType = 'BM'
     fidal = True
@@ -19,7 +19,7 @@ def main():
     interrogationMarker = getInterrogatives(letters)
     query = qClean.clean(query, fidal, transcriptionType, negationMarker, quotationMarker, interrogationMarker)
     query.sort(key=lengthSort)
-    queryExecute.execute(query, fidal, negationMarker, quotationMarker, interrogationMarker)
+    queryExecute.execute(query, fidal, negationMarker, quotationMarker, interrogationMarker, transcriptionType)
 
 def getLetters():
     #Load letters file
