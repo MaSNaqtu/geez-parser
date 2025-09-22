@@ -7,21 +7,23 @@ Created on Fri Nov  8 16:05:53 2024
 """
 
 import re
-import xml.etree.ElementTree as ET
+from lxml import etree
 import requests
+
+namespace = {'fidal': 'http://fidal.parser'}
 
 # Expands candidates by performing substitutions and check against Dillman
 def checkDill(candidates: list) -> list:
-    tree = ET.parse('./in/morpho/lemmas.xml')
+    lemmas = etree.parse('./in/morpho/lemmas.xml')
     
     dillmanCheck = []
+    resultingLemmas = []
     for candidate in candidates:
         substitutions = substitutionsInCandidate(candidate)
-        lemmas = []
-        for lemma in tree.getroot().iter('{http://fidal.parser}lemma'):
+        for lemma in lemmas.xpath('//fidal:lemma', namespaces=namespace):
             for child in lemma:
                 if child.text in substitutions:
-                    lemmas = lemmas + [lemma]
+                    resultingLemmas = resultingLemmas + [lemma]
             continue
         
         for lemma in lemmas:
@@ -50,91 +52,88 @@ def substitutionsInCandidate(candidate: str) -> list:
     candidateList = []
     # is the second s supposed to be ṣ or z or something?
     emphaticS = ['s','s', 'ḍ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticS, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticS, 'normal')
     upperEmphaticS = ['S','Ś', 'Ḍ']
-    candidateList = candidateList + substitute(candidate.strip(), upperEmphaticS, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), upperEmphaticS, 'normal')
     a = ['a','ä']
-    candidateList = candidateList + substitute(candidate.strip(), a, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), a, 'normal')
     upperA = ['A','Ä']
-    candidateList = candidateList + substitute(candidate.strip(), upperA, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), upperA, 'normal')
     
     e = ['e','ǝ','ə','ē']
-    candidateList = candidateList + substitute(candidate.strip(), e, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), e, 'normal')
     upperE = ['E','Ǝ','Ē']
-    candidateList = candidateList + substitute(candidate.strip(), upperE, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), upperE, 'normal')
     
     w = ['w','ʷ']
-    candidateList = candidateList + substitute(candidate.strip(), w, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), w, 'normal')
     
     alay = ['ʾ', 'ʿ', '`']
-    candidateList = candidateList + substitute(candidate.strip(), alay, 'ws')
+    candidateList = candidateList + substitute(candidate['root'].strip(), alay, 'ws')
     
     laringals14 = ['ሀ', 'ሐ', 'ኀ', 'ሃ', 'ሓ', 'ኃ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals14, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals14, 'normal')
     
     laringals2 = ['ሀ', 'ሐ', 'ኀ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals2, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals2, 'normal')
     laringals3 = ['ሂ', 'ሒ', 'ኂ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals3, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals3, 'normal')
     laringals4 = ['ሁ', 'ሑ', 'ኁ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals4, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals4, 'normal')
     laringals5 = ['ሄ', 'ሔ', 'ኄ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals5, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals5, 'normal')
     laringals6 = ['ህ', 'ሕ', 'ኅ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals6, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals6, 'normal')
     laringals7 = ['ሆ', 'ሖ', 'ኆ']
-    candidateList = candidateList + substitute(candidate.strip(), laringals7, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), laringals7, 'normal')
     
     ssound1 = ['ሠ','ሰ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound1, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound1, 'normal')
     ssound2 = ['ሡ','ሱ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound2, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound2, 'normal')
     ssound3 = ['ሢ','ሲ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound3, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound3, 'normal')
     ssound4 = ['ሣ','ሳ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound4, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound4, 'normal')
     ssound5 = ['ሥ','ስ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound5, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound5, 'normal')
     ssound6 = ['ሦ','ሶ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound6, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound6, 'normal')
     ssound7 = ['ሤ','ሴ']
-    candidateList = candidateList + substitute(candidate.strip(), ssound7, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), ssound7, 'normal')
     
     emphaticT1 = ['ጸ', 'ፀ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT1, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT1, 'normal')
     emphaticT2 = ['ጹ', 'ፁ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT2, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT2, 'normal')
     emphaticT3 = ['ጺ', 'ፂ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT3, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT3, 'normal')
     emphaticT4 = ['ጻ', 'ፃ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT4, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT4, 'normal')
     emphaticT5 = ['ጼ', 'ፄ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT5, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT5, 'normal')
     emphaticT6 = ['ጽ', 'ፅ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT6, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT6, 'normal')
     emphaticT7 = ['ጾ', 'ፆ']
-    candidateList = candidateList + substitute(candidate.strip(), emphaticT7, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), emphaticT7, 'normal')
     
     asounds14 = ['አ', 'ዐ', 'ኣ', 'ዓ']
-    candidateList = candidateList + substitute(candidate.strip(), asounds14, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), asounds14, 'normal')
     
     asounds2 = ['ኡ', 'ዑ']
-    candidateList = candidateList + substitute(candidate.strip(), asounds2, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), asounds2, 'normal')
     asounds3 = ['ኢ', 'ዒ']
-    candidateList = candidateList + substitute(candidate.strip(), asounds3, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), asounds3, 'normal')
     asounds5 = ['ኤ', 'ዔ']
-    candidateList = candidateList + substitute(candidate.strip(), asounds5, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), asounds5, 'normal')
     asounds6 = ['እ', 'ዕ']
-    candidateList = candidateList + substitute(candidate.strip(), asounds6, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), asounds6, 'normal')
     asounds7 = ['ኦ', 'ዖ']
-    candidateList = candidateList + substitute(candidate.strip(), asounds7, 'normal')
+    candidateList = candidateList + substitute(candidate['root'].strip(), asounds7, 'normal')
     
-    result = []
-    for candidate in candidateList:
-        if candidate not in result:
-            result = result + [candidate]
+    candidateList = list(set(candidateList))
     
-    return result
+    return candidateList
 
 # Adds all possible substitutions to candidates
 def substitute(candidate: str, homophones: list, mode: str) -> list:

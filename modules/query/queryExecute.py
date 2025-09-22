@@ -6,7 +6,7 @@ Created on Fri Nov  8 15:30:55 2024
 @author: samuel
 """
 
-import xml.etree.ElementTree as ET
+from lxml import etree
 import re
 from modules.query.dillman import checkDill
 
@@ -18,24 +18,85 @@ def execute(query, fidal, negative, quotative, interrogatives, transcriptionType
         nouns = formulas(q, 'noun', transcriptionType)
 
 def getAllParticles(candidate, negative, quotative, interrogatives):
+    pronouns = etree.parse('./in/morpho/pronouns.xml')
+    proclitics = etree.parse('./in/morpho/proclitics.xml').xpath('//fidal:proclitic', namespaces=namespace)
+    particles = etree.parse('./in/morpho/particles.xml').xpath('//fidal:particle', namespaces=namespace)
+    numbers = etree.parse('./in/morpho/numbers.xml').xpath('//fidal:num', namespaces=namespace)
+    
     candidates = []
-    if candidate == negative['root']:
-        candidates = candidates + negative['root']
-    if candidate == quotative['root']:
-        candidates = candidates + quotative['root']
-
-    for pronoun in getPronouns(candidate):
-        candidates = candidates + [pronoun['root']]
-    for proclitic in getProclitic(candidate):
-        candidates = candidates + [proclitic['root']]
+    chosenPronouns = pronouns.xpath('//fidal:group//fidal:type[@name="nominative"]/fidal:num[@type="Singular"]/fidal:gender[@type="Masculine"]/fidal:full', namespaces=namespace)
+    for root in chosenPronouns:
+        gender = root.getparent()
+        number = gender.getparent()
+        typ = number.getparent()
+        group = typ.getparent()
+        
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'pronoun',
+                'group': group.get('name'),
+                'type': typ.get('name'),
+                'forms': {
+                    'desinence': {
+                        'gender': gender.get('type'),
+                        'number': number.get('type')
+                        }
+                    }
+                },
+            'root': root.text
+            }]
+    
+    for proclitic in proclitics:
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'proclitic'
+                },
+            'root': proclitic.text
+            }]
+    
+    candidates = candidates + [{
+        'solution': {
+            'pos': 'proclitic',
+            'type': 'negative'
+            },
+        'root': negative
+        }]
+    
+    candidates = candidates + [{
+        'solution': {
+            'pos': 'quotative particle',
+            'type': 'quotative'
+            },
+        'root': quotative
+        }]
+    
     for interrogative in interrogatives:
-        if candidate == interrogative['root']:
-            candidates = candidates + [interrogative['root']]
-    for particle in getParticles(candidate):
-        candidates = candidates + [particle['root']]
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'interrogative particle',
+                'type': 'interrogative'
+                },
+            'root': interrogative
+            }]
+        
+    for particle in particles:
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'particle',
+                'type': particle.get('type')
+                },
+            'root': particle.text
+            }]
+        
+    for number in numbers:
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'numeral',
+                'type': number.get('val')
+                },
+            'root': number.text
+            }]
 
-    #Unused?
-    numbers = getNumbers()
     return checkDill.checkDill(candidates)
 
 def formulas(candidate, formulaType, transcriptionType):
