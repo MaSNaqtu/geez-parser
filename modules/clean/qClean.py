@@ -6,13 +6,19 @@ Created on Fri Nov  8 10:58:06 2024
 @author: samuel
 """
 
-import xml.etree.ElementTree as ET
+from lxml import etree
+
+namespaces={'fidal':'http://fidal.parser'}
 
 def clean(query, fidal, transcriptionType, negation, quotation, interrogation):
     #TODO:check if it is really fidal
     print('Processing Query' + str(query) + ':')
-    proclitics = getProclitics()
-    query = splitProclitics(proclitics, query)
+    proclitics = etree.parse('./in/morpho/proclitics.xml')
+    pronouns = etree.parse('./in/morpho/pronouns.xml')
+    # Declares namespace and finds the text of all proclitics
+    procliticList = proclitics.xpath('//fidal:proclitic/text()', namespaces=namespaces)
+    procliticList = procliticList + pronouns.xpath('//fidal:proclitic/text()', namespaces=namespaces)
+    query = splitProclitics(procliticList, query)
     print(query)
     query = splitNegation(query, negation)
     print(query)
@@ -28,7 +34,7 @@ def clean(query, fidal, transcriptionType, negation, quotation, interrogation):
     print(query)
     query = removeColon(query)
     print(query)
-    query = removeDuplicates(query)
+    query = list(set(query))
     print(query)
     query.sort(key=sortQuery)
     print(query)
@@ -38,15 +44,15 @@ def clean(query, fidal, transcriptionType, negation, quotation, interrogation):
 # If query starts with proclitic expand to [proclitic, query, query without proclitic]
 def splitProclitics(proclitics, query):
     for proclitic in proclitics:
-        if query[0].startswith(proclitic.text):
-            query = [query[0][0], query[0], query[0][1:]]
+        if query[0].startswith(proclitic):
+            query = [query[0][:len(proclitic)], query[0], query[0][len(proclitic):]]
     return query
 
 # If query starts with negation expand to [negation, query, query without negation]
 def splitNegation(query, negation):
     queryResult = []
     for q in query:
-        if q[0] == negation['root']:
+        if q[0] == negation:
             queryResult = queryResult + [q[0], q, q[1:]]
         else:
             queryResult = queryResult + [q]
@@ -56,7 +62,7 @@ def splitNegation(query, negation):
 def splitQuotation(query, quotation):
     queryResult = []
     for q in query:
-        if q[-1] == quotation['root']:
+        if q[-1] == quotation:
             queryResult = queryResult + [q[0:-1], q[-1], q]
         else:
             queryResult = queryResult + [q]
@@ -64,10 +70,9 @@ def splitQuotation(query, quotation):
 
 # If query ends with interrogation expand to [query without interrogation, interrogation, query]
 def splitInterrogation(query, interrogation):
-    interrogationValues = [value['root'] for value in interrogation]
     queryResult = []
     for q in query:
-        if q[-1] in interrogationValues:
+        if q[-1] in interrogation:
             queryResult = queryResult + [q[0:-1], q[-1], q]
         else:
             queryResult = queryResult + [q]
@@ -75,14 +80,11 @@ def splitInterrogation(query, interrogation):
 
 # If query ends with suffix expand to [query without suffix, suffix, query]
 def splitSuffixes(query):
-    tree = ET.parse('./in/morpho/particles.xml')
-    root = tree.getroot()
+    particles = etree.parse('./in/morpho/particles.xml')
     
-    suf = []
+    
     #Find suffixes
-    for particle in root.iter('{http://fidal.parser}particle'):
-        if particle.attrib['position'] == 'suf':
-            suf = suf + [particle.text]
+    suf = particles.xpath('//fidal:particle[@position="suf"]/text()', namespaces=namespaces)
             
     queryResult = []
     for q in query:
@@ -95,13 +97,10 @@ def splitSuffixes(query):
 
 # If query starts with affix expand to [query without affix, affix, query] (Not sure why ordering is different for other affixes like negation)
 def splitAffixes(query):
-    tree = ET.parse('./in/morpho/particles.xml')
-    root = tree.getroot()
+    particles = etree.parse('./in/morpho/particles.xml')
     
-    af = []
-    for particle in root.iter('{http://fidal.parser}particle'):
-        if particle.attrib['position'] == 'af':
-            af = af + [particle.text]
+    
+    af = particles.xpath('//fidal:particle[@position="suf"]/text()', namespaces=namespaces)
             
     queryResult = []
     for q in query:
@@ -114,12 +113,10 @@ def splitAffixes(query):
 
 # If query starts or ends with number expand to [query without number, number, query]
 def splitNumbers(query):
-    tree = ET.parse('./in/morpho/numbers.xml')
-    root = tree.getroot()
+    numbers = etree.parse('./in/morpho/numbers.xml')
     
-    nums = []
-    for number in root.iter('{http://fidal.parser}num'):
-        nums = nums + [number.text]
+    
+    nums = numbers.xpath('//fidal:num/text()', namespaces=namespaces)
     
     queryResult = []
     for q in query:
@@ -140,26 +137,6 @@ def removeColon(query):
         else:
             queryResult = queryResult + [q]
     return queryResult
-
-def removeDuplicates(query):
-    queryResult = []
-    for q in query:
-        if q not in queryResult:
-            queryResult = queryResult + [q]
-    return queryResult
-        
-
-def getProclitics():
-    proclitics = []
-    tree = ET.parse('./in/morpho/proclitics.xml')
-    root = tree.getroot()
-    for proclitic in root.iter('{http://fidal.parser}proclitic'):
-        proclitics = proclitics + [proclitic]
-    tree = ET.parse('./in/morpho/pronouns.xml')
-    root = tree.getroot()
-    for proclitic in root.iter('{http://fidal.parser}proclitic'):
-        proclitics = proclitics + [proclitic]
-    return proclitics
 
 def sortQuery(q):
     return len(q)
