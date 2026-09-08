@@ -6,335 +6,343 @@ Created on Fri Nov  8 15:30:55 2024
 @author: samuel
 """
 
-from lxml import etree
 import re
+
+import constants
 from modules.query.dillman import checkDill
 
 namespace = {'fidal': 'http://fidal.parser'}
     
-def execute(query, fidal, negative, quotative, interrogatives, transcriptionType):
+def execute(query, fidal, negative, quotative, interrogatives, transcription_type):
     for q in query:
-        particles = getAllParticles(q, negative, quotative, interrogatives)
-        nouns = formulas(q, 'noun', transcriptionType)
+        particles = get_all_particles(q, negative, quotative, interrogatives)
+        nouns = formulas(q, 'noun', transcription_type)
 
-def getAllParticles(candidate, negative, quotative, interrogatives):
-    pronouns = etree.parse('./in/morpho/pronouns.xml')
-    proclitics = etree.parse('./in/morpho/proclitics.xml').xpath('//fidal:proclitic', namespaces=namespace)
-    particles = etree.parse('./in/morpho/particles.xml').xpath('//fidal:particle', namespaces=namespace)
-    numbers = etree.parse('./in/morpho/numbers.xml').xpath('//fidal:num', namespaces=namespace)
-    
+
+def get_all_particles(candidate, negative, quotative, interrogatives):
     candidates = []
-    chosenPronouns = pronouns.xpath('//fidal:group//fidal:type[@name="nominative"]/fidal:num[@type="Singular"]/fidal:gender[@type="Masculine"]/fidal:full', namespaces=namespace)
-    for root in chosenPronouns:
-        gender = root.getparent()
-        number = gender.getparent()
-        typ = number.getparent()
-        group = typ.getparent()
-        
+    # Get element with text matching candidate
+    pronoun_matches = constants.PRONOUNS.xpath(f"//fidal:*[text()='{candidate}']", namespaces=namespace)
+    for match in pronoun_matches:
+        # Get root (full nominative, singular, masculine form of the group) by traversing group -> type -> num -> gender -> full
+        root = match.xpath("ancestor::fidal:group/fidal:type[@name='nominative']/fidal:num[@type='Singular']/fidal:gender[@type='Masculine']/fidal:full", namespaces=namespace)[0]
         candidates = candidates + [{
             'solution': {
                 'pos': 'pronoun',
-                'group': group.get('name'),
-                'type': typ.get('name'),
+                'group': match.xpath("ancestor::fidal:group/@name", namespaces=namespace)[0],
+                'type': match.xpath("ancestor::fidal:type/@name", namespaces=namespace)[0],
                 'forms': {
                     'desinence': {
-                        'gender': gender.get('type'),
-                        'number': number.get('type')
-                        }
+                        'gender': match.xpath("ancestor::fidal:gender/@type", namespaces=namespace),
+                        'number': match.xpath("ancestor::fidal:num/@type", namespaces=namespace)
                     }
-                },
+                }
+            },
             'root': root.text
-            }]
-    
-    for proclitic in proclitics:
+        }]
+
+    proclitic_matches = constants.PROCLITICS.xpath(f"//fidal:proclitic[text()='{candidate}']", namespaces=namespace)
+    for proclitic in proclitic_matches:
         candidates = candidates + [{
             'solution': {
                 'pos': 'proclitic'
                 },
             'root': proclitic.text
             }]
-    
-    candidates = candidates + [{
-        'solution': {
-            'pos': 'proclitic',
-            'type': 'negative'
-            },
-        'root': negative
-        }]
-    
-    candidates = candidates + [{
-        'solution': {
-            'pos': 'quotative particle',
-            'type': 'quotative'
-            },
-        'root': quotative
-        }]
-    
+
+    if candidate == negative:
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'proclitic',
+                'type': 'negative'
+                },
+            'root': negative
+            }]
+
+    if candidate == quotative:
+        candidates = candidates + [{
+            'solution': {
+                'pos': 'quotative particle',
+                'type': 'quotative'
+                },
+            'root': quotative
+            }]
+
     for interrogative in interrogatives:
-        candidates = candidates + [{
-            'solution': {
-                'pos': 'interrogative particle',
-                'type': 'interrogative'
-                },
-            'root': interrogative
-            }]
-        
-    for particle in particles:
-        candidates = candidates + [{
-            'solution': {
-                'pos': 'particle',
-                'type': particle.get('type')
-                },
-            'root': particle.text
-            }]
-        
-    for number in numbers:
-        candidates = candidates + [{
-            'solution': {
-                'pos': 'numeral',
-                'type': number.get('val')
-                },
-            'root': number.text
-            }]
-
-    return checkDill.checkDill(candidates)
-
-def formulas(candidate, formulaType, transcriptionType):
-    lettersRoot = ET.parse('./in/morpho/letters.xml')
-    consVowel = parseChars(candidate, formulaType, lettersRoot)
-    possibleDesinences = desinences(consVowel, formulaType, lettersRoot, transcriptionType)
-    formula1 = formula(consVowel, transcriptionType, lettersRoot)
-    return
-
-def formula(consVowel, transcriptionType, lettersRoot):
-    formula = ''
-    for i, conVowel in enumerate(consVowel):
-        # TODO: Check if this is correct, original goes through letters again, not sure why
-        formula = formula + str(conVowel['position']) + conVowel['transcription']
-    return formula
-    
-# Get pronouns with info group name (e.g. demonstrative), type (e.g. nominative) and their forms
-def getPronouns(candidate):
-    tree = ET.parse('./in/morpho/pronouns.xml')
-    root = tree.getroot()
-    
-    return getPronoun(candidate, root)
-
-# Finds pronouns matching the candidate, finds its root, and returns group, type, forms, and the root
-def getPronoun(candidate, root):
-    pronouns = []
-    for group in root:
-        for pType in group:
-            for num in pType:
-                for gender in num:
-                    for child in gender:
-                        if child.text == candidate:
-                            types = group.findall('{http://fidal.parser}type')
-                            for rootType in types:
-                                if rootType.attrib['name'] == 'nominative':
-                                    root = getRoot(group)
-                                    forms = getForms(group, pType)
-                                    pronoun = {
-                                        'solution': {
-                                            'pos': 'pronoun',
-                                            'group': group.attrib['name'],
-                                            'type': pType.attrib['name'],
-                                            'forms': forms
-                                            },
-                                        'root': root
-                                        }
-                                    pronouns = pronouns + [pronoun]
-    return pronouns
-
-# Gets the root (nominative, Singular, Masculine) of the pronoun
-def getRoot(group):
-    for pType in group:
-        if pType.attrib['name'] == 'nominative':
-            for num in pType:
-                if num.attrib['type'] == 'Singular':
-                    for gender in num:
-                        if gender.attrib['type'] == 'Masculine':
-                            return gender.find('{http://fidal.parser}full').text
-
-
- # Gets forms with infos type, gender, and number
-def getForms(group, pType):
-    forms = []
-    for num in pType:
-        for gender in num:
-            form = {
-                'desinence': {
-                    'group': 'pronoun ' + group.attrib['name'],
-                    'gender': gender.attrib['type'] if 'type' in gender.attrib else 'N/A',
-                    'number': num.attrib['type']
-                    }
-                }
-            forms = forms + [form]
-    return forms
-
-def getProclitic(candidate):
-    tree = ET.parse('./in/morpho/proclitics.xml')
-    root = tree.getroot()
-    results = []
-    for child in root:
-        if (child.text == candidate):
-            result = {
+        if candidate == interrogative:
+            candidates = candidates + [{
                 'solution': {
-                    'pos': 'proclitics',
+                    'pos': 'interrogative particle',
+                    'type': 'interrogative'
                     },
-                'root': child.text
-                }
-            results = results + [result]
-    return results
+                'root': interrogative
+                }]
 
-def getParticles(candidate):
-    tree = ET.parse('./in/morpho/particles.xml')
-    root = tree.getroot()
-    particles = []
-    for particle in root:
+    particle_matches = constants.PARTICLES.xpath(f"//fidal:particle[text()='{candidate}']", namespaces=namespace)
+    for particle in particle_matches:
         if particle.text == candidate:
-            particles = particles + [{
+            candidates = candidates + [{
                 'solution': {
                     'pos': 'particle',
-                    'type': particle.attrib['type']
+                    'type': particle.get('type')
                     },
                 'root': particle.text
                 }]
-    return particles
 
-def getNumbers():
-    tree = ET.parse('./in/morpho/numbers.xml')
-    root = tree.getroot()
-    numbers = []
-    
-    for number in root:
-        numbers = numbers + [{
-            'solution': {
-                'pos': 'numeral',
-                'type': number.attrib['val']
-                },
-            'root': number.text
-            }]
-    return numbers
+    number_matches = constants.NUMBERS.xpath(f"//fidal:num[text()='{candidate}']", namespaces=namespace)
+    for number in number_matches:
+        if number.text == candidate:
+            candidates = candidates + [{
+                'solution': {
+                    'pos': 'numeral',
+                    'type': number.get('val')
+                    },
+                'root': number.text
+                }]
 
-def parseChars(candidate, formulaType, lettersRoot):
-    if formulaType == 'noun':
-        return standardNoun(candidate, lettersRoot)
-        
+    # Access to online Dillmann taken down, so this will not access the dictionary
+    return checkDill.checkDill(candidates)
 
-def standardNoun(candidate, lettersRoot):
-    letters = []
-    
-    for i, char in enumerate(candidate):
-        # Find realization with text equal to character
-        realization = lettersRoot.find(".//realization[. = '{}']".format(char), namespace)
-        # Find realization and move up 2 levels to get letter
-        letter = lettersRoot.find(".//realization[. = '{}']....".format(char), namespace)
-        #I don't quite understandd what this means yet
-        if (i == 0 and len(candidate) > 4 and (realization.text == 'መ' or realization.text == 'ም')):
-            realizations = letter.find('realizations', namespace).findall('realization', namespace)
-            first = realizations[1]
-            transcription = letter.find('transcription', namespace).text
-            for j, currentRealization in enumerate(realizations):
-                if realization.text == currentRealization.text:
-                    break
-            letters.append({'char': char, 'firstOrder': first.text, 'order': j, 'transcription': transcription, 'name': 'prefix'})
+
+def get_formula(cons_vowel, transcription_type):
+    formula = ''
+    for i, con_vowel in enumerate(cons_vowel):
+        order = con_vowel['order']
+        transcriptions = constants.LETTERS.xpath(f'//fidal:vowel[parent::fidal:transcription[@type="{transcription_type}"]]', namespaces=namespace)
+        transcription = transcriptions[order].text
+        # Seperate in original, but seem identical
+        if con_vowel['name'] == 'prefix' or con_vowel['name'] == 'suffix':
+            formula = formula + con_vowel['transcription']
+            if transcription is not None:
+                formula = formula + transcription
         else:
-            realizations = letter.find('realizations', namespace).findall('realization', namespace)
-            first = realizations[1]
-            transcription = letter.find('transcription', namespace).text
-            for j, currentRealization in enumerate(realizations):
-                if realization.text == currentRealization.text:
-                    break
-            letters.append({'char': char, 'firstOrder': first.text, 'position': i, 'order': j, 'transcription': transcription, 'name': 'syllab'})
+            prefix_count = len([conVowel for conVowel in cons_vowel if conVowel['name'] == 'prefix'])
+            # +1 So it starts at 1 in the formula
+            formula = formula + str(con_vowel['position'] - prefix_count + 1)
+            if transcription is not None:
+                formula = formula + transcription
+
+    return formula
+
+
+def formulas(candidate, formula_type, transcription_type):
+    cons_vowel = parse_chars(candidate, formula_type)
+    possible_desinences = desinences(cons_vowel, formula_type, transcription_type)
+    formula = get_formula(cons_vowel, transcription_type)
+    if '4' in formula:
+        short = formula[0 : formula.index('4')]
+        if short.endswith('ǝ'):
+            short = short.replace('ǝ', 'a')
+    else:
+        short = formula
+
+    # I figured out from the paper that yǝ is a prefix, but I don't know why the others are equivalent
+    if short.startswith('tǝ') and formula_type != 'noun':
+        short = short.replace('tǝ', 'yǝ')
+    if short.startswith('nǝ') and formula_type != 'noun':
+        short = short.replace('nǝ', 'yǝ')
+    if short.startswith('ya') and formula_type != 'noun':
+        short = short.replace('ya', 'yǝ')
+
+    # Don't know why doubled (will double each in a double, meaning there will be 4 instances)
+    formula_gem = short.replace('2', '22')
+    formula_gem_1 = short.replace('1', '11')
+    formula_gem_1_and_2 = formula_gem_1.replace('2', '22')
+    formula_gem_3 = short.replace('3', '33')
+
+    formula_t = short
+    # This seems to replace 1ǝ with t and then compensate the other numbers because one is missing
+    if formula_t.startswith('yǝ1ǝ') and type != 'noun':
+        formula_t = formula_t.replace('1ǝ', 't').replace('2', '1').replace('3', '2').replace('4', '3')
+    formula_long_a = short
+    if formula_type != 'noun':
+        formula_long_a = formula_long_a.replace('ā', 'a')
+    formula_u = short
+    if formula_type != 'noun':
+        formula_u = formula_u.replace('u', 'a')
+    formula_i = short
+    if formula_type != 'noun':
+        formula_i = formula_i.replace('i', 'a')
+    formula_short_w = short
+    if '1' in short and formula_type != 'noun':
+        formula_short_w = short.replace('1', 'y')
+
+    schwacher_formulas = []
+    if formula_type == 'noun':
+        schwacher_formulas.append(schwacher(short, 'L'))
+    else:
+        for letter in ['W', 'L', 'Y']:
+            schwacher_formulas.append(schwacher(short, letter))
+
+
+    return
+
+
+def parse_chars(candidate, formula_type):
+    if formula_type == 'noun':
+        return standard_noun(candidate)
+
+def standard_noun(candidate):
+    letters = []
+
+    for i, char in enumerate(candidate):
+
+        realizations = constants.LETTERS.xpath(
+            f"//fidal:letter//fidal:realization[.='{char}']",
+            namespaces=namespace
+        )
+
+        for realization in realizations:
+            if i == 0 and len(candidate) > 4 and char in ('መ', 'ም'):
+                first_order = realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace)[0].text
+                order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
+                transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
+
+                letters.append({
+                    'char': char,
+                    'firstOrder': first_order,
+                    'position': i,
+                    'order': order,
+                    'transcription': transcription,
+                    'name': 'prefix'
+                })
+            else:
+                for realization2 in realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace):
+                    first_order = realization2.text
+                    order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
+                    transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
+
+                    letters.append({
+                        'char': char,
+                        'firstOrder': first_order,
+                        'position': i,
+                        'order': order,
+                        'transcription': transcription,
+                        'name': 'syllab'
+                    })
+
     return letters
 
-def desinences(consVowel, formulaType, lettersRoot, transcriptionType):
-    if formulaType == 'noun':
-        targetPatterns = ET.parse('./in/morpho/nounssuffixes.xml')
+
+def desinences(cons_vowel, formula_type, transcription_type):
+    if formula_type == 'noun':
+        target_patterns = constants.NOUN_SUFFIXES
     else:
-        targetPatterns = ET.parse('./in/morpho/conjugation.xml')
-    pseudoTrans = charsToPseudoTranscription(consVowel, formulaType, lettersRoot, transcriptionType)
+        target_patterns = constants.CONJUGATION
+
+    pseudo_trans = chars_to_pseudo_transcription(cons_vowel, formula_type, transcription_type)
+    pseudo_trans_short = pseudo_trans[:-1]
+    transcriptions = [pseudo_trans, pseudo_trans_short]
+
     desinences = []
-    for transcription in pseudoTrans:
-        affixes = [pattern.text for pattern in targetPatterns.findall('.//{http://fidal.parser}affix')]
-        for affix in affixes:
-            cleanAffix = affix.replace('kk', 'k').replace('tt', 't').replace('nn', 'n')
-            if len(cleanAffix) == 1:
-                countAffix = 0
+    postfixes = target_patterns.xpath('.//fidal:affix[not(@type="pre")]', namespaces=namespace)
+    for transcription in transcriptions:
+        for postfix in postfixes:
+            clean_affix = postfix.text.replace('kk', 'k').replace('tt', 't').replace('nn', 'n')
+
+            if len(clean_affix) == 1:
+                count_affix = 0
             else:
-                affixChars = transcriptionToChars(cleanAffix, 0, 'BM', lettersRoot)
-                countAffix = len(affixChars)
-                if (transcription.endswith(cleanAffix)):
-                    desinenceObject = desinence(targetPatterns, affix)
-                    desinenceObject['length'] = len(consVowel) - countAffix
-                    desinences = desinences + [desinenceObject]
-                # What does this mean?
-                if (transcription.endswith('ǝ') and transcription.startswith('^')):
-                    desinenceObject = desinence(targetPatterns, affix)
-                    desinenceObject['length'] = len(consVowel)
-                    desinences = desinences + [desinenceObject]
+                affix_chars = transcription_to_chars(clean_affix, 0, 'BM')
+                count_affix = len(affix_chars)
+            if transcription.endswith(clean_affix):
+                desinence_object = postfix_desinence(postfix)
+                desinence_object['length'] = len(cons_vowel) - count_affix
+                desinences.append(desinence_object)
+
+    prefixes = target_patterns.xpath('.//fidal:affix[@type="pre"]', namespaces=namespace)
+    for prefix in prefixes:
+        if len(prefix.xpath('./following-sibling::fidal:affix', namespaces=namespace)) == 0:
+            if pseudo_trans.startswith(prefix.text) and pseudo_trans.endswith('ǝ'):
+                desinence_object = prefix_desinence(prefix)
+                desinence_object['length'] = len(cons_vowel)
+                desinences.append(desinence_object)
     return desinences
+
+
+def postfix_desinence(affix):
+    desinence = {'affix': affix.text}
+    if len(affix.xpath('./ancestor::fidal:pronouns', namespaces=namespace)) > 0:
+        desinence['pronouns'] = {
+                'gender': affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[0].get('type'),
+                'person': affix.xpath('./ancestor::fidal:person', namespaces=namespace)[0].get('type'),
+                'number': affix.xpath('./ancestor::fidal:num', namespaces=namespace)[0].get('type')
+                }
+    desinence['gender'] = affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[-1].get('type')
+    desinence['person'] = affix.xpath('./ancestor::fidal:person', namespaces=namespace)[-1].get('type')
+    desinence['number'] = affix.xpath('./ancestor::fidal:num', namespaces=namespace)[-1].get('type')
+    desinence['mode'] = affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name')
+    desinence['type'] = affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
+
+    return desinence
                     
 
-def desinence(targetPatterns, affix):
-    affixPattern = ".//{http://fidal.parser}affix[. = '" + affix +"']"
-    # Not sure why last in code, results in all the same thing, wrong understanding maybe?
-    # gender = targetPatterns.find(affixPattern + "......").findall("{http://fidal.parser}gender")[-1].attrib['type']
-    # person = targetPatterns.find(affixPattern + "........").findall("{http://fidal.parser}person")[-1].attrib['type']
-    # number = targetPatterns.find(affixPattern + "..........").findall("{http://fidal.parser}num")[-1].attrib['type']
-    # mode = targetPatterns.find(affixPattern + "............").findall("{http://fidal.parser}type")[-1].attrib['name']
-    # affixType = targetPatterns.find(affixPattern + "..............").findall("{http://fidal.parser}group")[-1].attrib['name']
-    
-    # Use info of current one because of above confusion
-    gender = targetPatterns.find(affixPattern + "....").attrib['type']
-    person = targetPatterns.find(affixPattern + "......").attrib['type']
-    number = targetPatterns.find(affixPattern + "........").attrib['type']
-    mode = targetPatterns.find(affixPattern + "..........").attrib['name']
-    affixType = targetPatterns.find(affixPattern + "............").attrib['name']
-    
+# Don't undeerstand this one
+def prefix_desinence(affix):
     return {
-        'gender': gender,
-        'person': person,
-        'number': number,
-        'mode': mode,
-        'type': affixType
+        'gender': affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[-1].get('type'),
+        'person': affix.xpath('./ancestor::fidal:person', namespaces=namespace)[-1].get('type'),
+        'number': affix.xpath('./ancestor::fidal:num', namespaces=namespace)[-1].get('type'),
+        'mode': affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name'),
+        'type': affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
     }
 
-def charsToPseudoTranscription(chars, formulaType, lettersRoot, transcriptionType):
-    result = []
+def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
+    vowels = constants.LETTERS.xpath(f'//fidal:vowel[parent::fidal:transcription[@type="{transcription_type}"]]', namespaces=namespace)
+
+    result = ''
     for char in chars:
-        partOne = char['transcription']
-        transcription = lettersRoot.find('transcription[@type="{}"]'.format(transcriptionType), namespace)
-        vowel = transcription.findall('vowel', namespace)[char['order'] + 1].text
-        charTranscription = char['transcription']
-        result = result + [charTranscription + vowel]
+        vowel_node = vowels[char['order']]
+        vowel = vowel_node.text
+        result += char['transcription']
+        if vowel is not None:
+            result += vowel
+
     return result
-    
-def transcriptionToChars(transcription, position, transcriptionType, lettersRoot):
-    transcriptionTag = lettersRoot.find('transcription[@type="{}"]'.format(transcriptionType), namespace)
-    vowelTags = transcriptionTag.findall('vowel')
-    vowels = ''
-    for vowel in vowelTags:
-        if vowel.text is not None:
-            vowels = vowels + vowel.text
+
+def transcription_to_chars(transcription, position, transcription_type):
+    transcription_tag = [vowel.text for vowel in constants.LETTERS.xpath('//fidal:transcription[@type="BM"]/fidal:vowel', namespaces=namespace) if vowel.text is not None]
+    vowels = ''.join(transcription_tag)
     # This matches text that starts with one consonant followed by any number of ʷ (including none) and then any number of the vowels in the chosen transcription (including none)
     regex = re.compile('(([ṭṗṣḍḫčḥśʿʾbcdfghlmnpqrstvzwyxk])(ʷ?[' + vowels +']?))')
-    allMatches = regex.findall(transcription)
-    
+    all_matches = regex.findall(transcription)
+
     chars = []
-    for full, consonant, vowel in allMatches:
-        for i, vowelTag in enumerate(vowelTags):
-            if vowelTag.text is not None and vowelTag.text == vowel:
-                order = i
-                fidal = vowelTag.text
-                first = vowelTags[1]
-                chars = chars + [{
-                    'char': fidal,
-                    'firstOrder': first,
-                    'position': position,
-                    'order': order,
-                    'transcription': vowel
-                }]
-        
+    for i, (full, consonant, vowel) in enumerate(all_matches):
+        order = 0
+        if len(vowel) != 0:
+            order = len(constants.LETTERS.xpath(f'//fidal:transcription[@type="{transcription_type}"]/fidal:vowel[.="{vowel}"]/preceding-sibling::fidal:vowel', namespaces = namespace))
+        # Gets realization of the same order
+        fidal = constants.LETTERS.xpath(f'//fidal:transcription[.="{consonant}"]/following-sibling::fidal:realizations/fidal:realization', namespaces = namespace)[order].text
+        first = constants.LETTERS.xpath(f'//fidal:transcription[.="{consonant}"]/following-sibling::fidal:realizations/fidal:realization', namespaces = namespace)[1].text
+        chars = chars + [{
+            'char': fidal,
+            'firstOrder': first,
+            'position': position + i,
+            'order': order,
+            'transcription': consonant
+        }]
+
     return chars
+    
+def schwacher(base, letter):
+    formula_w_1 = base.replace('1', letter)
+    formula_w_2 = base.replace('2', letter)
+    formula_w_3 = base.replace('3', letter)
+
+    formula_gem_w_1 = formula_w_1.replace('1', '11')
+    formula_gem_w_2 = formula_w_2.replace('2', '22')
+    # In the original this does the same thing as formula_gem_w_2 again, is that a mistake?
+    formula_gem_w_3 = formula_w_3.replace('3', '33')
+
+    gem = letter + letter
+    formula_gem_1_and_2_w = formula_w_1.replace(letter, gem)
+    return [
+        formula_w_1,
+        formula_w_2,
+        formula_w_3,
+        formula_gem_w_1,
+        formula_gem_w_2,
+        formula_gem_w_3,
+        formula_gem_1_and_2_w
+    ]

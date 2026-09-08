@@ -7,43 +7,43 @@ Created on Fri Nov  8 16:05:53 2024
 """
 
 import re
-from lxml import etree
-import requests
+
+import constants
 
 namespace = {'fidal': 'http://fidal.parser'}
 
 # Expands candidates by performing substitutions and check against Dillman
 def checkDill(candidates: list) -> list:
-    lemmas = etree.parse('./in/morpho/lemmas.xml')
-    
     dillmanCheck = []
     resultingLemmas = []
+    links = []
     for candidate in candidates:
         substitutions = substitutionsInCandidate(candidate)
-        for lemma in lemmas.xpath('//fidal:lemma', namespaces=namespace):
+        for lemma in constants.LEMMAS.xpath('//fidal:lemma', namespaces=namespace):
             for child in lemma:
                 if child.text in substitutions:
                     resultingLemmas = resultingLemmas + [lemma]
             continue
         
-        for lemma in lemmas:
+        for lemma in resultingLemmas:
             entry = {
                 'link': lemma.attrib['{http://www.w3.org/XML/1998/namespace}id'],
                 'root': candidate
                 }
-            if entry not in dillmanCheck:
+            if entry['link'] not in links:
                 dillmanCheck = dillmanCheck + [entry]
+                links = links + [entry['link']]
     
     for entry in dillmanCheck:
         #Apparently you need to specify a user-agent, no idea why though, I just took a random one
-        headers = {
-            'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36',
-            'Connection': 'keep-alive'
-            }
-        url = 'https://betamasaheft.eu/Dillmann/lemma/' + entry['link'] + '.xml'
-        response = requests.get(url, headers=headers)
+        #headers = {
+        #    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/89.0.4389.128 Safari/537.36',
+        #    'Connection': 'keep-alive'
+        #    }
+        #url = 'https://betamasaheft.eu/Dillmann/lemma/' + entry['link'] + '.xml'
+        #response = requests.get(url, headers=headers)
         # If status code is 200 (OK), the candidate exists in Dillman, otherwise it would be 404 (NOT_FOUND)
-        entry['inDillman'] = (response.status_code == 200)
+        entry['inDillman'] = "NA"
     return dillmanCheck
     
 
