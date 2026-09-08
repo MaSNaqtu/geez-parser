@@ -23,11 +23,11 @@ quot = constants.LETTERS.xpath('//fidal:realization[@type="quot"]//text()', name
 interrogative = constants.LETTERS.xpath('//fidal:realization[@type="int"]//text()', namespaces=namespace)
 
 def main():
-    #query =['ተወሰንክሙ'] #  Interesting to Nesina
+    query =['ተወሰንክሙ'] #  Interesting to Nesina
     #query =['ዝንቱ']  # Has pronoun
     #query = ['ዘኢወለደተኒ'] # Has proclitic
     #query = ['ይወልድ'] # Has prefix
-    query = ['አና']  # Has postfix
+    #query = ['አና']  # Has postfix
     # Initialize default parameters
     transcription_type = 'BM'
     fidal = True

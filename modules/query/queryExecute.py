@@ -103,38 +103,84 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
     # Access to online Dillmann taken down, so this will not access the dictionary
     return checkDill.checkDill(candidates)
 
+
+def get_formula(cons_vowel, transcription_type):
+    formula = ''
+    for i, con_vowel in enumerate(cons_vowel):
+        order = con_vowel['order']
+        transcriptions = constants.LETTERS.xpath(f'//fidal:vowel[parent::fidal:transcription[@type="{transcription_type}"]]', namespaces=namespace)
+        transcription = transcriptions[order].text
+        # Seperate in original, but seem identical
+        if con_vowel['name'] == 'prefix' or con_vowel['name'] == 'suffix':
+            formula = formula + con_vowel['transcription']
+            if transcription is not None:
+                formula = formula + transcription
+        else:
+            prefix_count = len([conVowel for conVowel in cons_vowel if conVowel['name'] == 'prefix'])
+            # +1 So it starts at 1 in the formula
+            formula = formula + str(con_vowel['position'] - prefix_count + 1)
+            if transcription is not None:
+                formula = formula + transcription
+
+    return formula
+
+
 def formulas(candidate, formula_type, transcription_type):
     cons_vowel = parse_chars(candidate, formula_type)
     possible_desinences = desinences(cons_vowel, formula_type, transcription_type)
     formula = get_formula(cons_vowel, transcription_type)
+    if '4' in formula:
+        short = formula[0 : formula.index('4')]
+        if short.endswith('ǝ'):
+            short = short.replace('ǝ', 'a')
+    else:
+        short = formula
+
+    # I figured out from the paper that yǝ is a prefix, but I don't know why the others are equivalent
+    if short.startswith('tǝ') and formula_type != 'noun':
+        short = short.replace('tǝ', 'yǝ')
+    if short.startswith('nǝ') and formula_type != 'noun':
+        short = short.replace('nǝ', 'yǝ')
+    if short.startswith('ya') and formula_type != 'noun':
+        short = short.replace('ya', 'yǝ')
+
+    # Don't know why doubled (will double each in a double, meaning there will be 4 instances)
+    formula_gem = short.replace('2', '22')
+    formula_gem_1 = short.replace('1', '11')
+    formula_gem_1_and_2 = formula_gem_1.replace('2', '22')
+    formula_gem_3 = short.replace('3', '33')
+
+    formula_t = short
+    # This seems to replace 1ǝ with t and then compensate the other numbers because one is missing
+    if formula_t.startswith('yǝ1ǝ') and type != 'noun':
+        formula_t = formula_t.replace('1ǝ', 't').replace('2', '1').replace('3', '2').replace('4', '3')
+    formula_long_a = short
+    if formula_type != 'noun':
+        formula_long_a = formula_long_a.replace('ā', 'a')
+    formula_u = short
+    if formula_type != 'noun':
+        formula_u = formula_u.replace('u', 'a')
+    formula_i = short
+    if formula_type != 'noun':
+        formula_i = formula_i.replace('i', 'a')
+    formula_short_w = short
+    if '1' in short and formula_type != 'noun':
+        formula_short_w = short.replace('1', 'y')
+
+    schwacher_formulas = []
+    if formula_type == 'noun':
+        schwacher_formulas.append(schwacher(short, 'L'))
+    else:
+        for letter in ['W', 'L', 'Y']:
+            schwacher_formulas.append(schwacher(short, letter))
+
+
     return
 
-def get_formula(consVowel, transcriptionType):
-    formula = ''
-    for i, conVowel in enumerate(consVowel):
-        # Seperate in original, but seem identical
-        if conVowel['name'] == 'prefix' or conVowel['name'] == 'suffix':
-            transcriptions = constants.LETTERS.xpath('//vowel[parent::transcription[@type="{}"]]'.format(transcriptionType))
-            formula = formula + conVowel['transcription']
-            transcription = transcriptions[conVowel['order']].text
-            # This seems weird, check
-            if transcription is not None:
-                formula = formula + transcription
-        else:
-            prefix_count = len([conVowel for conVowel in consVowel if conVowel['name'] == 'prefix'])
-            transcriptions = constants.LETTERS.xpath('//vowel[parent::transcription[@type="{}"]]'.format(transcriptionType))
-            formula = formula + str(conVowel['position'] - prefix_count)
-            transcription = transcriptions[conVowel['order']].text
-            # This seems weird
-            if transcription is not None:
-                formula = formula + transcription
-            
-    return formula
 
 def parse_chars(candidate, formula_type):
     if formula_type == 'noun':
         return standard_noun(candidate)
-
 
 def standard_noun(candidate):
     letters = []
@@ -212,9 +258,8 @@ def desinences(cons_vowel, formula_type, transcription_type):
                 desinence_object['length'] = len(cons_vowel)
                 desinences.append(desinence_object)
     return desinences
-                    
 
-# Don't undeerstand this one
+
 def postfix_desinence(affix):
     desinence = {'affix': affix.text}
     if len(affix.xpath('./ancestor::fidal:pronouns', namespaces=namespace)) > 0:
@@ -230,7 +275,9 @@ def postfix_desinence(affix):
     desinence['type'] = affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
 
     return desinence
+                    
 
+# Don't undeerstand this one
 def prefix_desinence(affix):
     return {
         'gender': affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[-1].get('type'),
@@ -252,14 +299,14 @@ def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
             result += vowel
 
     return result
-    
+
 def transcription_to_chars(transcription, position, transcription_type):
     transcription_tag = [vowel.text for vowel in constants.LETTERS.xpath('//fidal:transcription[@type="BM"]/fidal:vowel', namespaces=namespace) if vowel.text is not None]
     vowels = ''.join(transcription_tag)
     # This matches text that starts with one consonant followed by any number of ʷ (including none) and then any number of the vowels in the chosen transcription (including none)
     regex = re.compile('(([ṭṗṣḍḫčḥśʿʾbcdfghlmnpqrstvzwyxk])(ʷ?[' + vowels +']?))')
     all_matches = regex.findall(transcription)
-    
+
     chars = []
     for i, (full, consonant, vowel) in enumerate(all_matches):
         order = 0
@@ -275,5 +322,27 @@ def transcription_to_chars(transcription, position, transcription_type):
             'order': order,
             'transcription': consonant
         }]
-        
+
     return chars
+    
+def schwacher(base, letter):
+    formula_w_1 = base.replace('1', letter)
+    formula_w_2 = base.replace('2', letter)
+    formula_w_3 = base.replace('3', letter)
+
+    formula_gem_w_1 = formula_w_1.replace('1', '11')
+    formula_gem_w_2 = formula_w_2.replace('2', '22')
+    # In the original this does the same thing as formula_gem_w_2 again, is that a mistake?
+    formula_gem_w_3 = formula_w_3.replace('3', '33')
+
+    gem = letter + letter
+    formula_gem_1_and_2_w = formula_w_1.replace(letter, gem)
+    return [
+        formula_w_1,
+        formula_w_2,
+        formula_w_3,
+        formula_gem_w_1,
+        formula_gem_w_2,
+        formula_gem_w_3,
+        formula_gem_1_and_2_w
+    ]
