@@ -125,10 +125,16 @@ def get_formula(cons_vowel, transcription_type):
     return formula
 
 
+def parse_chars(candidate, formula_type):
+    if formula_type == 'noun':
+        return standard_noun(candidate)
+
+
 def formulas(candidate, formula_type, transcription_type):
     cons_vowel = parse_chars(candidate, formula_type)
     possible_desinences = desinences(cons_vowel, formula_type, transcription_type)
     formula = get_formula(cons_vowel, transcription_type)
+
     if '4' in formula:
         short = formula[0 : formula.index('4')]
         if short.endswith('ǝ'):
@@ -154,33 +160,64 @@ def formulas(candidate, formula_type, transcription_type):
     # This seems to replace 1ǝ with t and then compensate the other numbers because one is missing
     if formula_t.startswith('yǝ1ǝ') and type != 'noun':
         formula_t = formula_t.replace('1ǝ', 't').replace('2', '1').replace('3', '2').replace('4', '3')
-    formula_long_a = short
+    formula_long_a = ''
     if formula_type != 'noun':
-        formula_long_a = formula_long_a.replace('ā', 'a')
-    formula_u = short
+        formula_long_a = short.replace('ā', 'a')
+    formula_u = ''
     if formula_type != 'noun':
-        formula_u = formula_u.replace('u', 'a')
-    formula_i = short
+        formula_u = short.replace('u', 'a')
+    formula_i = ''
     if formula_type != 'noun':
-        formula_i = formula_i.replace('i', 'a')
+        formula_i = short.replace('i', 'a')
     formula_short_w = short
     if '1' in short and formula_type != 'noun':
         formula_short_w = short.replace('1', 'y')
 
+    # Schwacher Wechsel: A Vocal Shift "Schwacher Wechsel," meaning "weak alternation" in German,
+    # describes a linguistic phenomenon specific to Germanic languages.
+    # It involves the alternation of vowels in certain inflectional forms of verbs, adjectives, and nouns.
+    # For instance, in German, the verb "geben" (to give) changes its vowel in the past tense to "gab" (gave).
+    # This vowel alternation is a characteristic feature of Germanic languages, contributing to their unique sound patterns.
+    # https://www.linguavoyage.org/ol/12025.html
     schwacher_formulas = []
     if formula_type == 'noun':
-        schwacher_formulas.append(schwacher(short, 'L'))
+        schwacher_formulas = schwacher_formulas + schwacher(short, 'L')
     else:
         for letter in ['W', 'L', 'Y']:
-            schwacher_formulas.append(schwacher(short, letter))
+            schwacher_formulas = schwacher_formulas + schwacher(short, letter)
+    alternatives_1 = [form.replace('aL','ǝL') for form in schwacher_formulas]
+    alternatives_2 = [form.replace('1ǝ','1a') for form in schwacher_formulas]
 
+    formula_noun = ''
+    if formula_type == 'noun':
+        formula_noun = formula.replace('4', 'nn')
+    formula_l_short = []
+    if formula_type == 'noun':
+        formula_l_short = [form[0:len(form) - 1] for form in schwacher_formulas]
 
+    all_alternatives = []
+    all_alternatives = (all_alternatives +
+                        [formula_short_w] +
+                        [formula] +
+                        formula_l_short +
+                        [formula_long_a] +
+                        [formula_u] +
+                        [formula_i] +
+                        [formula_t] +
+                        [formula_noun] +
+                        [formula_gem] +
+                        [formula_gem_1] +
+                        [formula_gem_1_and_2] +
+                        [formula_gem_3] +
+                        schwacher_formulas +
+                        alternatives_1 +
+                        alternatives_2)
+
+    #Don't know why we do that again, but this time  for all
+    formula_l_short = [form.substring(len(form) - 1) for form in all_alternatives]
+    all_formulas = [shva(form) for form in all_alternatives]
     return
 
-
-def parse_chars(candidate, formula_type):
-    if formula_type == 'noun':
-        return standard_noun(candidate)
 
 def standard_noun(candidate):
     letters = []
@@ -222,7 +259,6 @@ def standard_noun(candidate):
                     })
 
     return letters
-
 
 def desinences(cons_vowel, formula_type, transcription_type):
     if formula_type == 'noun':
@@ -275,9 +311,8 @@ def postfix_desinence(affix):
     desinence['type'] = affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
 
     return desinence
-                    
 
-# Don't undeerstand this one
+
 def prefix_desinence(affix):
     return {
         'gender': affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[-1].get('type'),
@@ -286,7 +321,9 @@ def prefix_desinence(affix):
         'mode': affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name'),
         'type': affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
     }
+                    
 
+# Don't undeerstand this one
 def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
     vowels = constants.LETTERS.xpath(f'//fidal:vowel[parent::fidal:transcription[@type="{transcription_type}"]]', namespaces=namespace)
 
@@ -324,7 +361,7 @@ def transcription_to_chars(transcription, position, transcription_type):
         }]
 
     return chars
-    
+
 def schwacher(base, letter):
     formula_w_1 = base.replace('1', letter)
     formula_w_2 = base.replace('2', letter)
@@ -346,3 +383,14 @@ def schwacher(base, letter):
         formula_gem_w_3,
         formula_gem_1_and_2_w
     ]
+
+
+def shva(form):
+    if 'ǝ' in form:
+        homophones = ['', 'ǝ']
+        shva_substitute(form, homophones, 'normal')
+
+
+def shva_substitute(form, homophones, param):
+    for homophone in homophones:
+        pass
