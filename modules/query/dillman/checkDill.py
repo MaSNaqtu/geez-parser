@@ -140,7 +140,7 @@ def substitute(candidate: str, homophones: list, mode: str) -> list:
     result = []
     
     for homophone in homophones:
-        if homophone in candidate:
+        if homophone != '' and homophone in candidate:
             for homophone2 in homophones:
                 if homophone2 != homophone:
                     for replaced in replace(candidate, homophone, homophone2, mode):

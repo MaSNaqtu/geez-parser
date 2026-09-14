@@ -214,8 +214,18 @@ def formulas(candidate, formula_type, transcription_type):
                         alternatives_2)
 
     #Don't know why we do that again, but this time  for all
-    formula_l_short = [form.substring(len(form) - 1) for form in all_alternatives]
-    all_formulas = [shva(form) for form in all_alternatives]
+    formula_l_short = [form[0:(len(form) - 1)] for form in all_alternatives if form != '']
+    nested_formulas = [shva(form) for form in all_alternatives]
+
+    all_formulas = []
+    for formula in nested_formulas:
+        for nest in formula:
+            if nest not in all_formulas:
+                all_formulas.append(nest)
+    long_and_short = all_formulas + formula_l_short
+
+    if formula_type == 'noun':
+        matches_noun(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
     return
 
 
@@ -260,6 +270,7 @@ def standard_noun(candidate):
 
     return letters
 
+
 def desinences(cons_vowel, formula_type, transcription_type):
     if formula_type == 'noun':
         target_patterns = constants.NOUN_SUFFIXES
@@ -295,7 +306,6 @@ def desinences(cons_vowel, formula_type, transcription_type):
                 desinences.append(desinence_object)
     return desinences
 
-
 def postfix_desinence(affix):
     desinence = {'affix': affix.text}
     if len(affix.xpath('./ancestor::fidal:pronouns', namespaces=namespace)) > 0:
@@ -321,9 +331,8 @@ def prefix_desinence(affix):
         'mode': affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name'),
         'type': affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
     }
-                    
 
-# Don't undeerstand this one
+
 def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
     vowels = constants.LETTERS.xpath(f'//fidal:vowel[parent::fidal:transcription[@type="{transcription_type}"]]', namespaces=namespace)
 
@@ -336,7 +345,9 @@ def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
             result += vowel
 
     return result
+                    
 
+# Don't undeerstand this one
 def transcription_to_chars(transcription, position, transcription_type):
     transcription_tag = [vowel.text for vowel in constants.LETTERS.xpath('//fidal:transcription[@type="BM"]/fidal:vowel', namespaces=namespace) if vowel.text is not None]
     vowels = ''.join(transcription_tag)
@@ -384,13 +395,26 @@ def schwacher(base, letter):
         formula_gem_1_and_2_w
     ]
 
-
 def shva(form):
     if 'ǝ' in form:
         homophones = ['', 'ǝ']
-        shva_substitute(form, homophones, 'normal')
+        #Separate definition in original, reuse seems sensible though
+        return checkDill.substitute(form, homophones, 'normal')
+    return [form]
 
 
-def shva_substitute(form, homophones, param):
-    for homophone in homophones:
-        pass
+
+def matches_noun(all_forms, transcription_type, cons_vowel, formula_type, possible_desinences):
+    # TODO: fuzzy
+    for formula in all_forms:
+        matchings = constants.NOMINAL.xpath(f'//fidal:formula[.="{formula}"]', namespaces = namespace)
+        for match in matchings:
+            if match.text.endswith('i'):
+                match_type = 'i'
+            elif match.text.endswith('e'):
+                match_type = 'e'
+            else:
+                match_type = 'consonant'
+
+            optional_type = match.attrib['type']
+            pattern_type = optional_type if optional_type else 'regular'
