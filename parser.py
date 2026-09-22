@@ -23,7 +23,14 @@ quot = constants.LETTERS.xpath('//fidal:realization[@type="quot"]//text()', name
 interrogative = constants.LETTERS.xpath('//fidal:realization[@type="int"]//text()', namespaces=namespace)
 
 def main():
-    query =['ተወሰንክሙ'] #  Interesting to Nesina
+    ## Nesina Collection
+    query = ['ሐካይ']
+    #query = ['ቃሕሞ']
+    #query = ['እምኔሁ']
+    #query = ['ወያስተዳሉ']
+    #query = ['ተመየጥ']
+    ## Samuel Collection
+    #query =['ተወሰንክሙ'] #  Interesting to Nesina
     #query =['ዝንቱ']  # Has pronoun
     #query = ['ዘኢወለደተኒ'] # Has proclitic
     #query = ['ይወልድ'] # Has prefix
@@ -35,6 +42,7 @@ def main():
     no_dil = False
     mismatch = False
     query = qClean.clean(query, fidal, transcription_type, neg, quot, interrogative)
+    print(f'After Clean: \n{query}')
     queryExecute.execute(query, fidal, neg, quot, interrogative, transcription_type)
 
 

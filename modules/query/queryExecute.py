@@ -16,8 +16,11 @@ namespace = {'fidal': 'http://fidal.parser'}
 def execute(query, fidal, negative, quotative, interrogatives, transcription_type):
     for q in query:
         particles = get_all_particles(q, negative, quotative, interrogatives)
+
+        print(f'All particles:\n{particles}')
+
         nouns = formulas(q, 'noun', transcription_type)
-        verbs = formulas(q, 'verb', transcription_type)
+        #verbs = formulas(q, 'verb', transcription_type)
 
 
 def get_all_particles(candidate, negative, quotative, interrogatives):
@@ -42,6 +45,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
             'root': root.text
         }]
 
+    print(f'Candidates after pronoun: \n{candidates}')
+
     proclitic_matches = constants.PROCLITICS.xpath(f"//fidal:proclitic[text()='{candidate}']", namespaces=namespace)
     for proclitic in proclitic_matches:
         candidates = candidates + [{
@@ -50,6 +55,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
                 },
             'root': proclitic.text
             }]
+
+    print(f'Candidates after proclitic: \n{candidates}')
 
     if candidate == negative:
         candidates = candidates + [{
@@ -60,6 +67,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
             'root': negative
             }]
 
+    print(f'Candidates after negative: \n{candidates}')
+
     if candidate == quotative:
         candidates = candidates + [{
             'solution': {
@@ -68,6 +77,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
                 },
             'root': quotative
             }]
+
+    print(f'Candidates after quotative: \n{candidates}')
 
     for interrogative in interrogatives:
         if candidate == interrogative:
@@ -78,6 +89,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
                     },
                 'root': interrogative
                 }]
+
+    print(f'Candidates after interrogative: \n{candidates}')
 
     particle_matches = constants.PARTICLES.xpath(f"//fidal:particle[text()='{candidate}']", namespaces=namespace)
     for particle in particle_matches:
@@ -90,6 +103,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
                 'root': particle.text
                 }]
 
+    print(f'Candidates after particles: \n{candidates}')
+
     number_matches = constants.NUMBERS.xpath(f"//fidal:num[text()='{candidate}']", namespaces=namespace)
     for number in number_matches:
         if number.text == candidate:
@@ -100,6 +115,8 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
                     },
                 'root': number.text
                 }]
+
+    print(f'Candidates after numbers: \n{candidates}\n\n')
 
     # Access to online Dillmann taken down, so this will not access the dictionary
     return checkDill.checkDill(candidates)
@@ -133,8 +150,19 @@ def parse_chars(candidate, formula_type):
 
 def formulas(candidate, formula_type, transcription_type):
     cons_vowel = parse_chars(candidate, formula_type)
+
+    if not cons_vowel:
+        return []
+
+    print(f'Parsed Chars:\n{cons_vowel}')
+
     possible_desinences = desinences(cons_vowel, formula_type, transcription_type)
+
+    print(f'Possible Desinences:\n{possible_desinences}')
+
     formula = get_formula(cons_vowel, transcription_type)
+
+    print(f'Initial Formula: {formula}')
 
     if '4' in formula:
         short = formula[0 : formula.index('4')]
@@ -225,7 +253,11 @@ def formulas(candidate, formula_type, transcription_type):
                 all_formulas.append(nest)
     long_and_short = all_formulas + formula_l_short
 
+    print(f'Long and Short:\n{long_and_short}')
+
     if formula_type == 'noun':
+        print_matches = matches_nouns(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
+        print(f'Matched Nouns:\n{print_matches}')
         return matches_nouns(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
     else:
         return matches(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
@@ -270,10 +302,14 @@ def standard_noun(candidate):
                         'name': 'syllab'
                     })
 
+    print(f'After standardNoun:\n{letters}')
+
     return letters
 
 
 def desinences(cons_vowel, formula_type, transcription_type):
+    if cons_vowel is None:
+        return []
     if formula_type == 'noun':
         target_patterns = constants.NOUN_SUFFIXES
     else:
@@ -339,12 +375,13 @@ def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
     vowels = constants.LETTERS.xpath(f'//fidal:vowel[parent::fidal:transcription[@type="{transcription_type}"]]', namespaces=namespace)
 
     result = ''
-    for char in chars:
-        vowel_node = vowels[char['order']]
-        vowel = vowel_node.text
-        result += char['transcription']
-        if vowel is not None:
-            result += vowel
+    if chars:
+        for char in chars:
+            vowel_node = vowels[char['order']]
+            vowel = vowel_node.text
+            result += char['transcription']
+            if vowel is not None:
+                result += vowel
 
     return result
                     

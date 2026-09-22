@@ -97,6 +97,8 @@ def split_affixes(query):
             
     query_result = []
     for q in query:
+        if q == '':
+            continue
         if q[0] in af:
             query_result = query_result + [q[1:], q[0], q]
         else:
