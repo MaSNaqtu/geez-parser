@@ -226,10 +226,9 @@ def formulas(candidate, formula_type, transcription_type):
     long_and_short = all_formulas + formula_l_short
 
     if formula_type == 'noun':
-        matches_nouns(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
+        return matches_nouns(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
     else:
-        matches(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
-    return
+        return matches(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
 
 
 def standard_noun(candidate):
