@@ -8,3 +8,6 @@ A python implementation of Gǝʿǝz Morphological Parser Application (https://ww
 All credit for the original implementation goes to Pietro Liuzzo. (2019, May 26). Gǝʿǝz Morphological Parser Application (Version 0.5). http://doi.org/10.25592/uhhfdm.125.
 
 Credit for data collection goes to the researchers working at the Online Dillman Lexicon (https://betamasaheft.eu/Dillmann) and the beta maṣāḥǝft (https://betamasaheft.eu/), especially to Alessandro Bausi and Eugenia Sokolinski.
+
+Disclamer: This is very much work-in-progress and corresponds to the contributors' current understanding.
+Especially the flowchart is incomplete and uses a specific example subject to change.

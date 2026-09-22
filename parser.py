@@ -41,9 +41,9 @@ def main():
     fuzzy = True
     no_dil = False
     mismatch = False
-    query = qClean.clean(query, fidal, transcription_type, neg, quot, interrogative)
+    query = qClean.clean(query[0], fidal, transcription_type, neg, quot, interrogative)
     print(f'After Clean: \n{query}')
-    queryExecute.execute(query, fidal, neg, quot, interrogative, transcription_type)
+    queryExecute.execute(query[0], fidal, neg, quot, interrogative, transcription_type)
 
 
 

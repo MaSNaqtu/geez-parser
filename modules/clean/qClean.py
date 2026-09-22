@@ -42,8 +42,8 @@ def clean(query, fidal, transcription_type, negation, quotation, interrogative):
 # If query starts with proclitic expand to [proclitic, query, query without proclitic]
 def split_proclitics(query, proclitics):
     for proclitic in proclitics:
-        if query[0].startswith(proclitic):
-            return [proclitic, query[0], query[0].replace(proclitic, '', 1)]
+        if query.startswith(proclitic):
+            return [proclitic, query, query.replace(proclitic, '', 1)]
     return query
 
 # If one part of the query starts with negation expand to [negation, query, query without negation]
