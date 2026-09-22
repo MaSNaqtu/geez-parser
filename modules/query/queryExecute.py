@@ -17,6 +17,7 @@ def execute(query, fidal, negative, quotative, interrogatives, transcription_typ
     for q in query:
         particles = get_all_particles(q, negative, quotative, interrogatives)
         nouns = formulas(q, 'noun', transcription_type)
+        verbs = formulas(q, 'verb', transcription_type)
 
 
 def get_all_particles(candidate, negative, quotative, interrogatives):
@@ -225,7 +226,9 @@ def formulas(candidate, formula_type, transcription_type):
     long_and_short = all_formulas + formula_l_short
 
     if formula_type == 'noun':
-        matches_noun(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
+        matches_nouns(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
+    else:
+        matches(long_and_short, transcription_type, cons_vowel, formula_type, possible_desinences)
     return
 
 
@@ -347,7 +350,7 @@ def chars_to_pseudo_transcription(chars, formula_type, transcription_type):
     return result
                     
 
-# Don't undeerstand this one
+# Don't understand this one
 def transcription_to_chars(transcription, position, transcription_type):
     transcription_tag = [vowel.text for vowel in constants.LETTERS.xpath('//fidal:transcription[@type="BM"]/fidal:vowel', namespaces=namespace) if vowel.text is not None]
     vowels = ''.join(transcription_tag)
@@ -403,12 +406,14 @@ def shva(form):
     return [form]
 
 
-
-def matches_noun(all_forms, transcription_type, cons_vowel, formula_type, possible_desinences):
+def matches_nouns(all_forms, transcription_type, cons_vowel, formula_type, possible_desinences):
     # TODO: fuzzy
+    final_result = []
     for formula in all_forms:
+        candidates = []
         matchings = constants.NOMINAL.xpath(f'//fidal:formula[.="{formula}"]', namespaces = namespace)
         for match in matchings:
+            match_type = ''
             if match.text.endswith('i'):
                 match_type = 'i'
             elif match.text.endswith('e'):
@@ -416,5 +421,220 @@ def matches_noun(all_forms, transcription_type, cons_vowel, formula_type, possib
             else:
                 match_type = 'consonant'
 
-            optional_type = match.attrib['type']
-            pattern_type = optional_type if optional_type else 'regular'
+            pattern_type = 'regular'
+            if 'type' in match.attrib:
+                pattern_type = match.attrib['type']
+
+            # Not 100% sure two last is correct
+            main_root = ''
+            for letter in cons_vowel[:2]:
+                main_root = main_root + letter['char']
+
+            second_position = cons_vowel[1]['firstOrder']
+            # Gets all realizations of that letter
+            second_position_realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{second_position}"]/parent::fidal:realizations/fidal:realization', namespaces = namespace)
+            second_position_sixth_order = second_position_realizations[0]
+
+            third_position = cons_vowel[2]['firstOrder']
+            third_position_realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{third_position}"]/parent::fidal:realizations/fidal:realization', namespaces = namespace)
+            third_position_sixth_order = third_position_realizations[0]
+
+            last_sixth = cons_vowel[0]['char'] + third_position_sixth_order.text
+
+            # I think that's the intention
+            beginning = ''
+            for letter in cons_vowel[:2]:
+                beginning = beginning + letter['firstOrder']
+            last_sixth_2 = beginning + third_position_sixth_order.text
+
+            # Also not sure on this one
+            last_sixth_and_second_last = cons_vowel[0]['firstOrder'] + second_position_sixth_order.text + third_position_sixth_order.text
+
+            other_root = ''
+            for letter in cons_vowel:
+                other_root = other_root + letter['firstOrder']
+            option_without_last = other_root[:-1]
+
+            # Checks for waw, yod, and laryngeal. If less than two on them, returns 'regular' else returns the list of matches.
+            main_root_types = root_type(main_root)
+
+            # I think this is done in the original because it was copied from the other matches, and it never shows up for nouns.
+            #mode = match.xpath(f'./ancestor::fidal:pattern/@name', namespaces=namespace)[0]
+            mode = ''
+
+            # I think this is done in the original because it was copied from the other matches, and it never shows up for nouns.
+            #pattern = match.attrib['attested'] + formula if 'attested' in match.attrib else 'yes'
+            pattern = formula
+
+            main_root_type_results = []
+            if main_root_types == 'regular':
+                main_root_type_results.append('regular')
+            else:
+                for main_root_type in main_root_types:
+                    if main_root_type.startswith('w') or main_root_type.startswith('y'):
+                        main_root_type_results.append('regular')
+                    else:
+                        main_root_type_results.append(main_root_type)
+
+            forms = []
+            for form in possible_desinences:
+                # Don't know why it has to be length 3
+                if form['type'] == match_type and form['length'] == 3:
+                    desinence_length = form['affix']
+            forms.sort(key=lambda inner_form: inner_form['length'])
+
+            solution = {
+                'pos': match.xpath(f'./ancestor::fidal:pos/@name', namespaces=namespace),
+                'group': match.xpath(f'./ancestor::fidal:group/@name', namespaces=namespace),
+                'type': match.xpath(f'./ancestor::fidal:type/@name', namespaces=namespace),
+                'mode': mode,
+                'forms': forms
+            }
+
+            roots = {
+                'mainRoot' : main_root,
+                'otherRoots': [other_root, option_without_last, last_sixth, last_sixth_2, last_sixth_and_second_last]
+            }
+            candidates.append({
+                'pattern': pattern,
+                'patternType': pattern_type,
+                'mainRootTypes': main_root_type_results,
+                'solution': solution,
+                'roots': roots
+            })
+        #TODO: There is a dillman check here (see it being offline), but it's still just for links, no other info
+        for candidate in candidates:
+            final_result.append(check_mismatches(candidate))
+    return final_result
+
+#TODO: Only started on this one, but since verbs are not implemented yet I'il do it later
+def matches(all_forms, transcription_type, cons_vowel, formula_type, possible_desinences):
+    # TODO: fuzzy
+    final_result = []
+    for formula in all_forms:
+        candidates = []
+        matchings = constants.PATTERNS.xpath(f'//fidal:formula[.="{formula}"]', namespaces = namespace)
+
+        verb_types = []
+        for index, letter in ['w', 'y', 'l']:
+            verb_types.append(letter + str(index))
+
+        for match in matchings:
+            verb_type = match.attrib['type'] if 'type' in match.attrib else 'regular'
+            match_type = ''
+            if match.text.endswith('i'):
+                match_type = 'i'
+            elif match.text.endswith('e'):
+                match_type = 'e'
+            else:
+                match_type = 'consonant'
+
+            pattern_type = 'regular'
+            if 'type' in match.attrib:
+                pattern_type = match.attrib['type']
+
+            # Not 100% sure two last is correct
+            main_root = ''
+            for letter in cons_vowel[:2]:
+                main_root = main_root + letter['char']
+
+            second_position = cons_vowel[1]['firstOrder']
+            # Gets all realizations of that letter
+            second_position_realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{second_position}"]/parent::fidal:realizations/fidal:realization', namespaces = namespace)
+            second_position_sixth_order = second_position_realizations[0]
+
+            third_position = cons_vowel[2]['firstOrder']
+            third_position_realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{third_position}"]/parent::fidal:realizations/fidal:realization', namespaces = namespace)
+            third_position_sixth_order = third_position_realizations[0]
+
+            last_sixth = cons_vowel[0]['char'] + third_position_sixth_order.text
+
+            # I think that's the intention
+            beginning = ''
+            for letter in cons_vowel[:2]:
+                beginning = beginning + letter['firstOrder']
+            last_sixth_2 = beginning + third_position_sixth_order.text
+
+            # Also not sure on this one
+            last_sixth_and_second_last = cons_vowel[0]['firstOrder'] + second_position_sixth_order.text + third_position_sixth_order.text
+
+            other_root = ''
+            for letter in cons_vowel:
+                other_root = other_root + letter['firstOrder']
+            option_without_last = other_root[:-1]
+
+            # Checks for waw, yod, and laryngeal. If less than two on them, returns 'regular' else returns the list of matches.
+            main_root_types = root_type(main_root)
+
+            # I think this is done in the original because it was copied from the other matches, and it never shows up for nouns.
+            #mode = match.xpath(f'./ancestor::fidal:pattern/@name', namespaces=namespace)[0]
+            mode = ''
+
+            # I think this is done in the original because it was copied from the other matches, and it never shows up for nouns.
+            #pattern = match.attrib['attested'] + formula if 'attested' in match.attrib else 'yes'
+            pattern = formula
+
+            main_root_type_results = []
+            if main_root_types == 'regular':
+                main_root_type_results.append('regular')
+            else:
+                for main_root_type in main_root_types:
+                    if main_root_type.startswith('w') or main_root_type.startswith('y'):
+                        main_root_type_results.append('regular')
+                    else:
+                        main_root_type_results.append(main_root_type)
+
+            forms = []
+            for form in possible_desinences:
+                # Don't know why it has to be length 3
+                if form['type'] == match_type and form['length'] == 3:
+                    desinence_length = form['affix']
+            forms.sort(key=lambda inner_form: inner_form['length'])
+
+            solution = {
+                'pos': match.xpath(f'./ancestor::fidal:pos/@name', namespaces=namespace),
+                'group': match.xpath(f'./ancestor::fidal:group/@name', namespaces=namespace),
+                'type': match.xpath(f'./ancestor::fidal:type/@name', namespaces=namespace),
+                'mode': mode,
+                'forms': forms
+            }
+
+            roots = {
+                'mainRoot' : main_root,
+                'otherRoots': [other_root, option_without_last, last_sixth, last_sixth_2, last_sixth_and_second_last]
+            }
+            candidates.append({
+                'pattern': pattern,
+                'patternType': pattern_type,
+                'mainRootTypes': main_root_type_results,
+                'solution': solution,
+                'roots': roots
+            })
+        #TODO: There is a dillman check here (see it being offline), but it's still just for links, no other info
+        for candidate in candidates:
+            final_result.append(check_mismatches(candidate))
+    return final_result
+
+def root_type(main_root):
+    check = []
+    for i, letter in enumerate(main_root):
+        # yod
+        if letter == 'የ':
+            check.append('y' + str(i + 1))
+        # waw
+        elif letter == 'ወ':
+            check.append('w' + str(i + 1))
+        # laryngeal
+        elif letter == 'ዐ':
+            check.append('l' + str(i + 1))
+    return 'regular' if len(check) < 2 else check
+
+
+
+def check_mismatches(candidate):
+    main_root_type = candidate['solution']['type']
+    pattern_type = candidate['patternType']
+
+    candidate['mismatch'] = pattern_type != main_root_type
+
+    return candidate
