@@ -20,7 +20,7 @@ def execute(query, fidal, negative, quotative, interrogatives, transcription_typ
         print(f'All particles:\n{particles}')
 
         nouns = formulas(q, 'noun', transcription_type)
-        #verbs = formulas(q, 'verb', transcription_type)
+        verbs = formulas(q, 'verb', transcription_type)
 
 
 def get_all_particles(candidate, negative, quotative, interrogatives):
@@ -146,6 +146,21 @@ def get_formula(cons_vowel, transcription_type):
 def parse_chars(candidate, formula_type):
     if formula_type == 'noun':
         return standard_noun(candidate)
+    elif len(candidate) >= 6 and (candidate.startswith('አስተ') or candidate.startswith('ያስተ')):
+        return ast_form(candidate)
+    elif len(candidate) < 3 and formula_type != 'regular' and formula_type != 'fuzzy':
+        match formula_type:
+            case 'w2':
+                w_position = 2
+            case 'w3':
+                w_position = 3
+            case _:
+                w_position = 1
+        return short(candidate, w_position)
+    elif len(candidate) == 3 and formula_type != 'regular' and formula_type != 'fuzzy':
+        return standard_short(candidate)
+    else:
+        return standard(candidate)
 
 
 def formulas(candidate, formula_type, transcription_type):
@@ -252,6 +267,9 @@ def formulas(candidate, formula_type, transcription_type):
             if nest not in all_formulas:
                 all_formulas.append(nest)
     long_and_short = all_formulas + formula_l_short
+    # Remove duplicates
+    long_and_short = list(set(long_and_short))
+    long_and_short = [formula for formula in long_and_short if formula != '']
 
     print(f'Long and Short:\n{long_and_short}')
 
@@ -279,32 +297,143 @@ def standard_noun(candidate):
                 order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
                 transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
 
-                letters.append({
-                    'char': char,
-                    'firstOrder': first_order,
-                    'position': i,
-                    'order': order,
-                    'transcription': transcription,
-                    'name': 'prefix'
-                })
+                letters.append(prefix_char(char, first_order, order, transcription))
             else:
                 for realization2 in realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace):
                     first_order = realization2.text
                     order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
                     transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
 
-                    letters.append({
-                        'char': char,
-                        'firstOrder': first_order,
-                        'position': i,
-                        'order': order,
-                        'transcription': transcription,
-                        'name': 'syllab'
-                    })
+                    letters.append(syllable_char(char, first_order, i, order, transcription))
 
     print(f'After standardNoun:\n{letters}')
 
     return letters
+
+
+def ast_form(candidate):
+    letters = []
+    # Don't know why it replaces the beginning with ያ/አስተ
+    if candidate[0] == 'ያ':
+        letters.append(prefix_char('ያ', 'የ', 4, 'y'))
+    else:
+        letters.append(prefix_char('አ', 'አ', 1, 't'))
+
+    letters.append(prefix_char('ስ','ሰ',6,'s'))
+    letters.append(prefix_char('ተ','ተ',1,'t'))
+
+    for i, letter in enumerate(candidate[3:]):
+        position = i + 3
+        realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{letter}"]', namespaces=namespace)
+        for realization in realizations:
+            first_order = realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace)[0].text
+            order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
+            transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
+
+            char = syllable_char(letter, first_order, position, order, transcription)
+            if i == len(candidate) - 1 and candidate[-1] == 'ት':
+                char['name'] = 'suffix'
+            letters.append(char)
+
+    return letters
+
+
+
+def short(candidate, w_position):
+    letters = []
+    for i, letter in enumerate(candidate):
+        pos_inc = 0
+        if w_position == 1:
+            pos_inc = i + w_position
+        elif w_position == 2:
+            match i:
+                case 0:
+                    pos_inc = 0
+                case 1:
+                    pos_inc = 2
+                case _:
+                    pos_inc = i
+        elif w_position == 3:
+            match i:
+                case 0:
+                    pos_inc = 0
+                case 2:
+                    pos_inc = 1
+                case _:
+                    pos_inc = i
+        else:
+            continue
+
+        realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{letter}"]', namespaces=namespace)
+        for realization in realizations:
+            first_order = realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace)[0].text
+            order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
+            transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
+
+            letters.append(syllable_char(letter, first_order, pos_inc, order, transcription))
+
+    return letters
+
+
+def standard_short(candidate):
+    letters = []
+    for i, letter in candidate:
+        realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{letter}"]', namespaces=namespace)
+        for realization in realizations:
+            first_order = realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace)[0].text
+            order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
+            transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
+
+            if i == 0 and (letter == 'ይ' or letter == 'ያ' or letter == 'አ' or letter == 'ት' or letter == 'ተ' or letter == 'ን'):
+                letters.append(prefix_char(letter, first_order, order, transcription))
+            elif i == len(candidate) - 1 and letter == 'ት':
+                char = syllable_char(letter, first_order, i, order, transcription)
+                char['name'] = 'suffix'
+                letters.append(char)
+            else:
+                letters.append(syllable_char(letter, first_order, i, order, transcription))
+
+    return letters
+
+def standard(candidate):
+    letters = []
+    for i, letter in enumerate(candidate):
+        realizations = constants.LETTERS.xpath(f'//fidal:realization[.="{letter}"]', namespaces=namespace)
+        for realization in realizations:
+            first_order = realization.xpath("parent::fidal:realizations/fidal:realization[2]", namespaces=namespace)[0].text
+            order = len(realization.xpath("preceding-sibling::fidal:realization", namespaces=namespace))
+            transcription = realization.xpath("ancestor::fidal:letter/fidal:transcription", namespaces=namespace)[0].text
+
+            if i < 2 and len(candidate) > 4 and candidate.startswith('ይት'):
+                letters.append(prefix_char(letter, first_order, order, transcription))
+            else:
+                if i < 2 and len(candidate) > 3 and (letter == 'ይ' or letter == 'ያ' or letter == 'አ' or letter == 'ት' or letter == 'ተ' or letter == 'ን'):
+                    letters.append(prefix_char(letter, first_order, order, transcription))
+                else:
+                    letters.append(syllable_char(letter, first_order, i, order, transcription))
+
+    return letters
+
+# The original has a branch which checks for candidate longer than 5. This can never be reached, since the length is checked
+def prefix_char(char, first_order, order, transcription):
+    return {
+        'char': char,
+        'firstOrder': first_order,
+        'order': order,
+        'transcription': transcription,
+        'name': 'prefix'
+    }
+
+def syllable_char(char, first_order, position, order, transcription):
+    return {
+        'char': char,
+        'firstOrder': first_order,
+        'position': position,
+        'order': order,
+        'transcription': transcription,
+        'name': 'syllab'
+    }
+
 
 
 def desinences(cons_vowel, formula_type, transcription_type):
@@ -356,7 +485,9 @@ def postfix_desinence(affix):
     desinence['person'] = affix.xpath('./ancestor::fidal:person', namespaces=namespace)[-1].get('type')
     desinence['number'] = affix.xpath('./ancestor::fidal:num', namespaces=namespace)[-1].get('type')
     desinence['mode'] = affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name')
-    desinence['type'] = affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
+    groups = affix.xpath('./ancestor::fidal:group', namespaces=namespace)
+    if groups:
+        desinence['type'] = groups[-1].get('name')
 
     return desinence
 
@@ -552,7 +683,7 @@ def matches(all_forms, transcription_type, cons_vowel, formula_type, possible_de
         matchings = constants.PATTERNS.xpath(f'//fidal:formula[.="{formula}"]', namespaces = namespace)
 
         verb_types = []
-        for index, letter in ['w', 'y', 'l']:
+        for index, letter in enumerate(['w', 'y', 'l']):
             verb_types.append(letter + str(index))
 
         for match in matchings:
