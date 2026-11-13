@@ -42,8 +42,9 @@ def clean(query, fidal, transcription_type, negation, quotation, interrogative):
 # If query starts with proclitic expand to [proclitic, query, query without proclitic]
 def split_proclitics(query, proclitics):
     for proclitic in proclitics:
-        if query.startswith(proclitic):
-            return [proclitic, query, query.replace(proclitic, '', 1)]
+        #TODO: Think of best way to handle more than one unit of text, likely to end up as a dictionary. Consult linguists.
+        if query[0].startswith(proclitic):
+            return [proclitic, query[0], query[0].replace(proclitic, '', 1)]
     return query
 
 # If one part of the query starts with negation expand to [negation, query, query without negation]
@@ -70,6 +71,8 @@ def split_quotation(query, quotation):
 def split_interrogative(query, interrogation):
     query_result = []
     for q in query:
+        if q == '':
+            continue
         # Two interrogative particles, so we need to check if the last letter is in  the list.
         if q[-1] in interrogation:
             query_result = query_result + [q[0:-1], q[-1], q]
