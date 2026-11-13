@@ -3,6 +3,7 @@ from modules.clean import qClean
 from modules.query import queryExecute
 
 import constants
+import json
 
 namespace = {'fidal': 'http://fidal.parser'}
 # Potentially add new attributes location of articulation, manner of articulation
@@ -24,29 +25,33 @@ interrogative = constants.LETTERS.xpath('//fidal:realization[@type="int"]//text(
 
 def main():
     ## Nesina Collection
-    #query = ['ሐካይ'] #Lösung: ḥakkay -> sollte auf ሀካይ, hakkāy, zurückgeführt werden: Vertauschung Laryngale
-    #query = ['ቃሕሞ'] #Lösung: qāḥm -> kind of ant
-    #query = ['እምኔሁ'] #Lösung: ʾǝmǝnne-hu  -> Langform der Präposition እም (ʾǝm, seit, von an, aus ...) mit Suffix-Pronomen 3.sg. m.
-    #query = ['ወያስተዳሉ'] # Lösung: yāstadāllu / yāstadālu  (√ dlw II: Stamm Ast3, W3 [schwaches Verb, d.h. man sieht nicht alle Konsonanten]), hier als Imperfekt (zwei ll) oder Jussiv (ein l) interpretierbar (bereit machen, vorbereiten, einrichten, würdig machen) Ähnliche Formen existieren von derselben Wurzel im Stamm Ast 2, aber eben nicht genau diese Form.
-    #query = ['ተመየጥ'] #  Lösung: tamayaṭ -> Imperativ sg.m., Stamm T1 des schwachen Verbes √ myṭ(Wende Dich zu! Wende Dich um! etc.)
+    #oQuery = ['ሐካይ'] #Lösung: ḥakkay -> sollte auf ሀካይ, hakkāy, zurückgeführt werden: Vertauschung Laryngale
+    #oQuery = ['ቃሕሞ'] #Lösung: qāḥm -> kind of ant
+    #oQuery = ['እምኔሁ'] #Lösung: ʾǝmǝnne-hu  -> Langform der Präposition እም (ʾǝm, seit, von an, aus ...) mit Suffix-Pronomen 3.sg. m.
+    #oQuery = ['ወያስተዳሉ'] # Lösung: yāstadāllu / yāstadālu  (√ dlw II: Stamm Ast3, W3 [schwaches Verb, d.h. man sieht nicht alle Konsonanten]), hier als Imperfekt (zwei ll) oder Jussiv (ein l) interpretierbar (bereit machen, vorbereiten, einrichten, würdig machen) Ähnliche Formen existieren von derselben Wurzel im Stamm Ast 2, aber eben nicht genau diese Form.
+    #oQuery = ['ተመየጥ'] #  Lösung: tamayaṭ -> Imperativ sg.m., Stamm T1 des schwachen Verbes √ myṭ(Wende Dich zu! Wende Dich um! etc.)
     ## Samuel Collection
-    #query =['ተወሰንክሙ'] #  Interesting to Nesina
-    #query =['ዝንቱ']  # Has pronoun
-    query = ['ዘኢወለደተኒ'] # Has proclitic
-    #query = ['ይወልድ'] # Has prefix
-    #query = ['አና']  # Has postfix
-    #query = ['ወለደ']
-    #query = ['ይዕቀብ']
+    #oQuery =['ተወሰንክሙ'] #  Interesting to Nesina
+    #oQuery =['ዝንቱ']  # Has pronoun
+    oQuery = ['ዘኢወለደተኒ'] # Has proclitic
+    #oQuery = ['ይወልድ'] # Has prefix
+    #oQuery = ['አና']  # Has postfix
+    #oQuery = ['ወለደ']
+    #oQuery = ['ይዕቀብ']
     # Initialize default parameters
     transcription_type = 'BM'
     fidal = True
     fuzzy = True
     no_dil = False
     mismatch = False
-    query = qClean.clean(query, fidal, transcription_type, neg, quot, interrogative)
+    query = qClean.clean(oQuery, fidal, transcription_type, neg, quot, interrogative)
     #print(f'After Clean: \n{query}')
-    queryExecute.execute(query, fidal, neg, quot, interrogative, transcription_type)
-
+    result = queryExecute.execute(query, fidal, neg, quot, interrogative, transcription_type)
+    obj = json.loads(str(result).replace('\'', '"').replace('True', '\"TRUE\"'))
+    formatted = json.dumps(obj, indent=4, ensure_ascii=False)
+    with open('./out/' + str(oQuery[0]) + '.json', 'w') as file:
+        file.write(formatted)
+    pass
 
 
 if __name__ == "__main__":

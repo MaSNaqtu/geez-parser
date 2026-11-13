@@ -14,6 +14,7 @@ from modules.query.dillman import checkDill
 namespace = {'fidal': 'http://fidal.parser'}
     
 def execute(query, fidal, negative, quotative, interrogatives, transcription_type):
+    results = []
     for q in query:
         particles = get_all_particles(q, negative, quotative, interrogatives)
 
@@ -26,6 +27,14 @@ def execute(query, fidal, negative, quotative, interrogatives, transcription_typ
         if len(verbs) > 0:
             print('Verb Matches: ' + str(nouns))
 
+        results.append({
+            "query": q,
+            "particles": particles,
+            "nouns": nouns,
+            "verbs": verbs
+        })
+    return results
+
 
 
 def get_all_particles(candidate, negative, quotative, interrogatives):
@@ -36,18 +45,18 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
         # Get root (full nominative, singular, masculine form of the group) by traversing group -> type -> num -> gender -> full
         root = match.xpath("ancestor::fidal:group/fidal:type[@name='nominative']/fidal:num[@type='Singular']/fidal:gender[@type='Masculine']/fidal:full", namespaces=namespace)[0]
         candidates = candidates + [{
-            'solution': {
-                'pos': 'pronoun',
-                'group': match.xpath("ancestor::fidal:group/@name", namespaces=namespace)[0],
-                'type': match.xpath("ancestor::fidal:type/@name", namespaces=namespace)[0],
-                'forms': {
-                    'desinence': {
-                        'gender': match.xpath("ancestor::fidal:gender/@type", namespaces=namespace),
-                        'number': match.xpath("ancestor::fidal:num/@type", namespaces=namespace)
+            "solution": {
+                "pos": 'pronoun',
+                "group": match.xpath("ancestor::fidal:group/@name", namespaces=namespace)[0],
+                "type": match.xpath("ancestor::fidal:type/@name", namespaces=namespace)[0],
+                "forms": {
+                    "desinence": {
+                        "gender": match.xpath("ancestor::fidal:gender/@type", namespaces=namespace),
+                        "number": match.xpath("ancestor::fidal:num/@type", namespaces=namespace)
                     }
                 }
             },
-            'root': root.text
+            "root": root.text
         }]
 
     #print(f'Candidates after pronoun: \n{candidates}')
@@ -55,32 +64,32 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
     proclitic_matches = constants.PROCLITICS.xpath(f"//fidal:proclitic[text()='{candidate}']", namespaces=namespace)
     for proclitic in proclitic_matches:
         candidates = candidates + [{
-            'solution': {
-                'pos': 'proclitic'
+            "solution": {
+                "pos": 'proclitic'
                 },
-            'root': proclitic.text
+            "root": proclitic.text
             }]
 
     #print(f'Candidates after proclitic: \n{candidates}')
 
     if candidate == negative:
         candidates = candidates + [{
-            'solution': {
-                'pos': 'proclitic',
-                'type': 'negative'
+            "solution": {
+                "pos": 'proclitic',
+                "type": 'negative'
                 },
-            'root': negative
+            "root": negative
             }]
 
     #print(f'Candidates after negative: \n{candidates}')
 
     if candidate == quotative:
         candidates = candidates + [{
-            'solution': {
-                'pos': 'quotative particle',
-                'type': 'quotative'
+            "solution": {
+                "pos": 'quotative particle',
+                "type": 'quotative'
                 },
-            'root': quotative
+            "root": quotative
             }]
 
     #print(f'Candidates after quotative: \n{candidates}')
@@ -88,11 +97,11 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
     for interrogative in interrogatives:
         if candidate == interrogative:
             candidates = candidates + [{
-                'solution': {
-                    'pos': 'interrogative particle',
-                    'type': 'interrogative'
+                "solution": {
+                    "pos": 'interrogative particle',
+                    "type": 'interrogative'
                     },
-                'root': interrogative
+                "root": interrogative
                 }]
 
     #print(f'Candidates after interrogative: \n{candidates}')
@@ -101,11 +110,11 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
     for particle in particle_matches:
         if particle.text == candidate:
             candidates = candidates + [{
-                'solution': {
-                    'pos': 'particle',
-                    'type': particle.get('type')
+                "solution": {
+                    "pos": 'particle',
+                    "type": particle.get('type')
                     },
-                'root': particle.text
+                "root": particle.text
                 }]
 
     #print(f'Candidates after particles: \n{candidates}')
@@ -114,11 +123,11 @@ def get_all_particles(candidate, negative, quotative, interrogatives):
     for number in number_matches:
         if number.text == candidate:
             candidates = candidates + [{
-                'solution': {
-                    'pos': 'numeral',
-                    'type': number.get('val')
+                "solution": {
+                    "pos": 'numeral',
+                    "type": number.get('val')
                     },
-                'root': number.text
+                "root": number.text
                 }]
 
     #print(f'Candidates after numbers: \n{candidates}\n\n')
@@ -422,21 +431,21 @@ def standard(candidate):
 # The original has a branch which checks for candidate longer than 5. This can never be reached, since the length is checked
 def prefix_char(char, first_order, order, transcription):
     return {
-        'char': char,
-        'firstOrder': first_order,
-        'order': order,
-        'transcription': transcription,
-        'name': 'prefix'
+        "char": char,
+        "firstOrder": first_order,
+        "order": order,
+        "transcription": transcription,
+        "name": 'prefix'
     }
 
 def syllable_char(char, first_order, position, order, transcription):
     return {
-        'char': char,
-        'firstOrder': first_order,
-        'position': position,
-        'order': order,
-        'transcription': transcription,
-        'name': 'syllab'
+        "char": char,
+        "firstOrder": first_order,
+        "position": position,
+        "order": order,
+        "transcription": transcription,
+        "name": 'syllab'
     }
 
 
@@ -499,11 +508,11 @@ def postfix_desinence(affix):
 
 def prefix_desinence(affix):
     return {
-        'gender': affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[-1].get('type'),
-        'person': affix.xpath('./ancestor::fidal:person', namespaces=namespace)[-1].get('type'),
-        'number': affix.xpath('./ancestor::fidal:num', namespaces=namespace)[-1].get('type'),
-        'mode': affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name'),
-        'type': affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
+        "gender": affix.xpath('./ancestor::fidal:gender', namespaces=namespace)[-1].get('type'),
+        "person": affix.xpath('./ancestor::fidal:person', namespaces=namespace)[-1].get('type'),
+        "number": affix.xpath('./ancestor::fidal:num', namespaces=namespace)[-1].get('type'),
+        "mode": affix.xpath('./ancestor::fidal:type', namespaces=namespace)[-1].get('name'),
+        "type": affix.xpath('./ancestor::fidal:group', namespaces=namespace)[-1].get('name')
     }
 
 
@@ -539,11 +548,11 @@ def transcription_to_chars(transcription, position, transcription_type):
         fidal = constants.LETTERS.xpath(f'//fidal:transcription[.="{consonant}"]/following-sibling::fidal:realizations/fidal:realization', namespaces = namespace)[order].text
         first = constants.LETTERS.xpath(f'//fidal:transcription[.="{consonant}"]/following-sibling::fidal:realizations/fidal:realization', namespaces = namespace)[1].text
         chars = chars + [{
-            'char': fidal,
-            'firstOrder': first,
-            'position': position + i,
-            'order': order,
-            'transcription': consonant
+            "char": fidal,
+            "firstOrder": first,
+            "position": position + i,
+            "order": order,
+            "transcription": consonant
         }]
 
     return chars
@@ -657,23 +666,23 @@ def matches_nouns(all_forms, transcription_type, cons_vowel, formula_type, possi
             forms.sort(key=lambda inner_form: inner_form['length'])
 
             solution = {
-                'pos': match.xpath(f'./ancestor::fidal:pos/@name', namespaces=namespace),
-                'group': match.xpath(f'./ancestor::fidal:group/@name', namespaces=namespace),
-                'type': match.xpath(f'./ancestor::fidal:type/@name', namespaces=namespace),
-                'mode': mode,
-                'forms': forms
+                "pos": match.xpath(f'./ancestor::fidal:pos/@name', namespaces=namespace),
+                "group": match.xpath(f'./ancestor::fidal:group/@name', namespaces=namespace),
+                "type": match.xpath(f'./ancestor::fidal:type/@name', namespaces=namespace),
+                "mode": mode,
+                "forms": forms
             }
 
             roots = {
-                'mainRoot' : main_root,
-                'otherRoots': [other_root, option_without_last, last_sixth, last_sixth_2, last_sixth_and_second_last]
+                "mainRoot" : main_root,
+                "otherRoots": [other_root, option_without_last, last_sixth, last_sixth_2, last_sixth_and_second_last]
             }
             candidates.append({
-                'pattern': pattern,
-                'patternType': pattern_type,
-                'mainRootTypes': main_root_type_results,
-                'solution': solution,
-                'roots': roots
+                "pattern": pattern,
+                "patternType": pattern_type,
+                "mainRootTypes": main_root_type_results,
+                "solution": solution,
+                "roots": roots
             })
         #TODO: There is a dillman check here (see it being offline), but it's still just for links, no other info
         for candidate in candidates:
@@ -716,24 +725,24 @@ def matches(all_forms, transcription_type, cons_vowel, formula_type, possible_de
                     forms.append(form)
 
             solution = {
-                'pos': match.xpath(f'./ancestor::fidal:pos/@name', namespaces=namespace),
-                'group': match.xpath(f'./ancestor::fidal:group/@name', namespaces=namespace),
-                'type': match.xpath(f'./ancestor::fidal:type/@name', namespaces=namespace),
-                'mode': mode,
-                'forms': forms
+                "pos": match.xpath(f'./ancestor::fidal:pos/@name', namespaces=namespace),
+                "group": match.xpath(f'./ancestor::fidal:group/@name', namespaces=namespace),
+                "type": match.xpath(f'./ancestor::fidal:type/@name', namespaces=namespace),
+                "mode": mode,
+                "forms": forms
             }
 
             roots = {
-                'mainRoot' : main_roots,
-                'otherRoots': roots['otherRoots']
+                "mainRoot": main_roots,
+                "otherRoots": roots['otherRoots']
             }
             candidates.append({
-                'pattern': formula,
-                'attested': match.attrib['attested'] if 'attested' in match.attrib else 'yes',
-                'patternType': pattern_type,
-                'mainRootTypes': main_root_types,
-                'solution': solution,
-                'roots': roots
+                "pattern": formula,
+                "attested": match.attrib['attested'] if 'attested' in match.attrib else 'yes',
+                "patternType": pattern_type,
+                "mainRootTypes": main_root_types,
+                "solution": solution,
+                "roots": roots
             })
         #TODO: There is a dillman check here (see it being offline), but it's still just for links, no other info
         for candidate in candidates:
